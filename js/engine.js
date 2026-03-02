@@ -4,6 +4,10 @@ let logArea;
 let buttonsArea;
 let teamInfo;
 let currentSaveSlot = null;
+let logQueue = [];
+let isLogProcessing = false;
+let pendingButtonsData = null;
+let logIdleCallbacks = [];
 
 function safeNumber(value, fallback = 0) {
     return Number.isFinite(Number(value)) ? Number(value) : fallback;
@@ -78,7 +82,27 @@ function removeInventoryItem(itemName, amount = 1) {
     gameState.inventory[bucket][itemName] = Math.max(0, (gameState.inventory[bucket][itemName] || 0) - amount);
 }
 
-function addLog(text, type = 'normal') {
+function resetLogSystem() {
+    logQueue = [];
+    isLogProcessing = false;
+    pendingButtonsData = null;
+    logIdleCallbacks = [];
+}
+
+function getLogDelay(type = 'normal') {
+    const delays = {
+        normal: 520,
+        sys: 480,
+        dialogue: 720,
+        combat: 760,
+        damage: 700,
+        heal: 620
+    };
+    return delays[type] || delays.normal;
+}
+
+function appendLogEntry(text, type = 'normal') {
+    if (!logArea) return;
     const div = document.createElement('div');
     div.className = 'log-entry';
     if (type === 'sys') div.classList.add('log-sys');
@@ -91,16 +115,107 @@ function addLog(text, type = 'normal') {
     logArea.scrollTop = logArea.scrollHeight;
 }
 
-function setButtons(buttonsData) {
+function showWaitingButtons() {
+    if (!buttonsArea) return;
+    buttonsArea.innerHTML = '';
+    const button = document.createElement('button');
+    button.innerText = '日志播放中...';
+    button.disabled = true;
+    button.className = 'log-wait-button';
+    buttonsArea.appendChild(button);
+}
+
+function renderButtons(buttonsData) {
+    if (!buttonsArea) return;
     buttonsArea.innerHTML = '';
     buttonsData.forEach((btn) => {
         const button = document.createElement('button');
         button.innerText = btn.text;
-        button.onclick = btn.action;
         if (btn.disabled) button.disabled = true;
         if (btn.className) button.className = btn.className;
+        button.onclick = () => {
+            Array.from(buttonsArea.querySelectorAll('button')).forEach((node) => {
+                node.disabled = true;
+            });
+            btn.action();
+        };
         buttonsArea.appendChild(button);
     });
+}
+
+function flushPendingButtons() {
+    if (!pendingButtonsData) return;
+    const buttonsData = pendingButtonsData;
+    pendingButtonsData = null;
+    renderButtons(buttonsData);
+}
+
+function resolveLogIdle() {
+    if (logQueue.length > 0 || isLogProcessing) return;
+    flushPendingButtons();
+    const callbacks = [...logIdleCallbacks];
+    logIdleCallbacks = [];
+    callbacks.forEach((callback) => callback());
+}
+
+function processLogQueue() {
+    if (!logArea || isLogProcessing) return;
+    if (logQueue.length === 0) {
+        resolveLogIdle();
+        return;
+    }
+
+    isLogProcessing = true;
+    const entry = logQueue.shift();
+    appendLogEntry(entry.text, entry.type);
+    window.setTimeout(() => {
+        isLogProcessing = false;
+        if (logQueue.length > 0) {
+            processLogQueue();
+            return;
+        }
+        resolveLogIdle();
+    }, getLogDelay(entry.type));
+}
+
+function isLogBusy() {
+    return isLogProcessing || logQueue.length > 0;
+}
+
+function runAfterLogs(callback, extraDelay = 0) {
+    if (typeof callback !== 'function') return;
+    if (!isLogBusy()) {
+        if (extraDelay > 0) {
+            window.setTimeout(callback, extraDelay);
+            return;
+        }
+        callback();
+        return;
+    }
+
+    logIdleCallbacks.push(() => {
+        if (extraDelay > 0) {
+            window.setTimeout(callback, extraDelay);
+            return;
+        }
+        callback();
+    });
+}
+
+function addLog(text, type = 'normal') {
+    logQueue.push({ text, type });
+    processLogQueue();
+}
+
+function setButtons(buttonsData, options = {}) {
+    if (options.immediate || !isLogBusy()) {
+        pendingButtonsData = null;
+        renderButtons(buttonsData);
+        return;
+    }
+
+    pendingButtonsData = buttonsData;
+    showWaitingButtons();
 }
 
 function updateUI() {
@@ -294,7 +409,7 @@ function selectPet(petName) {
     Object.keys(STARTER_GIFT.special).forEach((itemName) => addInventoryItem(itemName, STARTER_GIFT.special[itemName]));
     addLog(NARRATIVE.intro.readyMessage, 'sys');
     updateUI();
-    setTimeout(enterHub, 400);
+    runAfterLogs(() => enterHub(), 120);
 }
 
 function createPetInstance(petName) {
@@ -747,7 +862,7 @@ function acceptLinxiaoPartnership() {
     addLog(NARRATIVE.story.duoPenalty, 'sys');
     unlockForest();
     updateUI();
-    setTimeout(enterHub, 500);
+    runAfterLogs(() => enterHub(), 140);
 }
 
 function declineLinxiaoPartnership() {
@@ -765,7 +880,7 @@ function declineLinxiaoPartnership() {
     }
     unlockForest();
     updateUI();
-    setTimeout(enterHub, 500);
+    runAfterLogs(() => enterHub(), 140);
 }
 
 function unlockForest() {
@@ -896,7 +1011,7 @@ function acceptQuest(questId) {
     gameState.progress.questStates[questId] = 'accepted';
     addLog(`你接受了委托：<strong>${QUESTS[questId].title}</strong>。`, 'heal');
     updateUI();
-    setTimeout(enterHub, 350);
+    runAfterLogs(() => enterHub(), 120);
 }
 
 function getQuestProgressText(questId) {
@@ -973,7 +1088,7 @@ function claimQuestReward(questId) {
     }
 
     updateUI();
-    setTimeout(enterHub, 350);
+    runAfterLogs(() => enterHub(), 120);
 }
 
 function openGeneralStore() {
@@ -1068,7 +1183,7 @@ function switchActivePet(index) {
     gameState.pet = selected;
     addLog(`你让 <strong>${gameState.pet.name}</strong> 站到了身边。它抖了抖身上的毛与叶片，显然早就等不及要上场了。`, 'heal');
     updateUI();
-    setTimeout(enterHub, 300);
+    runAfterLogs(() => enterHub(), 100);
 }
 
 function gainExp(amount, options = {}) {
@@ -1290,6 +1405,7 @@ function loadGame(slot) {
     hideAllMenus();
     document.getElementById('game-container').style.display = 'flex';
     initDomRefs();
+    resetLogSystem();
     logArea.innerHTML = '';
     addLog('=== 游戏已加载 ===', 'sys');
     addLog(`存档位 ${slot} 已载入。`, 'sys');
@@ -1433,6 +1549,8 @@ function initDomRefs() {
 
 function initEngine() {
     initDomRefs();
+    resetLogSystem();
+    if (logArea) logArea.innerHTML = '';
     if (!logArea || !buttonsArea || !teamInfo) {
         console.error('Failed to initialize game UI');
         return;
@@ -1511,7 +1629,7 @@ function handleStoryCombatDefeat(context) {
     if (context && context.storyEvent === 'linxiaoBoss') {
         addLog('林晓收起弓，拍了拍你的肩：“没关系，下次再打。真要一起走，总得先把脚步站稳。”', 'dialogue');
     }
-    setTimeout(enterHub, 700);
+    runAfterLogs(() => enterHub(), 180);
 }
 
 window.addEventListener('DOMContentLoaded', () => {

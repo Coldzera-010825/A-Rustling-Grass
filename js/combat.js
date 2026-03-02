@@ -202,7 +202,7 @@ function startCombat(encounterId, options = {}) {
     addLog(NARRATIVE.combat.start, 'combat');
     addLog(`${NARRATIVE.combat.turnOrderPrefix}${gameState.combatState.turnOrder.map((unit) => unit.name).join(' → ')}`, 'sys');
     updateUI();
-    executeTurn();
+    runAfterLogs(() => executeTurn(), 120);
 }
 
 function calculateTurnOrder() {
@@ -237,11 +237,11 @@ function executeTurn() {
     addLog(NARRATIVE.combat.turnPrefix.replace('{{name}}', unit.name), 'combat');
 
     if (unit.isEnemy) {
-        setTimeout(() => enemyAI(unit), 450);
+        runAfterLogs(() => enemyAI(unit), 160);
         return;
     }
 
-    showCombatOptions(unit);
+    runAfterLogs(() => showCombatOptions(unit), 80);
 }
 
 function showCombatOptions(unit) {
@@ -286,7 +286,7 @@ function useBasicAttack(attacker) {
     maybeTriggerAllyLight(attacker, target);
     updateUI();
     if (!checkCombatEnd()) {
-        setTimeout(nextTurn, 300);
+        runAfterLogs(() => nextTurn(), 140);
     }
 }
 
@@ -345,7 +345,7 @@ function useSkill(attacker, skillName) {
     maybeTriggerAllyLight(attacker, target);
     updateUI();
     if (!checkCombatEnd()) {
-        setTimeout(nextTurn, 300);
+        runAfterLogs(() => nextTurn(), 140);
     }
 }
 
@@ -466,7 +466,7 @@ function attemptCapture(unit, ballName) {
 
     addLog(NARRATIVE.combat.captureFail, 'damage');
     updateUI();
-    setTimeout(nextTurn, 300);
+    runAfterLogs(() => nextTurn(), 140);
 }
 
 function enemyAI(enemy) {
@@ -494,7 +494,7 @@ function nextTurn() {
         calculateTurnOrder();
         addLog(NARRATIVE.combat.newRound, 'sys');
     }
-    executeTurn();
+    runAfterLogs(() => executeTurn(), 100);
 }
 
 function syncCombatRoster() {
@@ -591,6 +591,6 @@ function fleeToVillage() {
     gameState.combatState = null;
     gameState.phase = 'hub';
     updateUI();
-    enterHub();
+    runAfterLogs(() => enterHub(), 120);
 }
 

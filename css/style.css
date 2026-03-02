@@ -577,3 +577,10 @@ button:disabled {
     color: #ffd77f;
     font-size: 11px;
 }
+
+
+.log-wait-button {
+    background: #2f3a2d;
+    border-color: #4c6a48;
+    color: #d4e7cf;
+}
