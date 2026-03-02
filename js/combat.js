@@ -59,8 +59,51 @@ function createEnemyUnit(encounterId, options = {}) {
         isEnemy: true,
         isPet: !!PETS[encounterId],
         captureable: enemyData.captureable !== false && !!PETS[encounterId],
+        requiredBall: enemyData.requiredBall || null,
         team: 'enemy'
     }];
+}
+
+function parseTypeParts(typeValue) {
+    if (!typeValue) return [];
+    return String(typeValue).split('/').map((part) => part.trim()).filter(Boolean);
+}
+
+function getTypeMultiplier(attackType, defendType) {
+    if (!attackType || !defendType || !TYPE_CHART[attackType]) return 1;
+    const targetTypes = parseTypeParts(defendType);
+    if (targetTypes.length === 0) return 1;
+    return targetTypes.reduce((multiplier, targetType) => {
+        if (TYPE_CHART[attackType].strongAgainst.includes(targetType)) return multiplier * 1.5;
+        if (TYPE_CHART[attackType].weakAgainst.includes(targetType)) return multiplier * 0.75;
+        return multiplier;
+    }, 1);
+}
+
+function logTypeEffect(attackType, targetType, multiplier) {
+    if (!attackType || !targetType || multiplier === 1) return;
+    if (multiplier > 1) {
+        addLog(`→ 属性克制：${attackType} 对 ${targetType} 更有效。`, 'damage');
+        return;
+    }
+    addLog(`→ 属性受阻：${attackType} 对 ${targetType} 效果较弱。`, 'sys');
+}
+
+function resolveAttackType(attacker, skill = null) {
+    if (skill && skill.type) return skill.type;
+    if (attacker && attacker.isPet) {
+        const parts = parseTypeParts(attacker.type);
+        return parts[0] || attacker.type;
+    }
+    return '普通';
+}
+
+function applyTypeDamage(baseDamage, attacker, target, skill = null) {
+    const attackType = resolveAttackType(attacker, skill);
+    const multiplier = getTypeMultiplier(attackType, target.type);
+    const finalDamage = Math.max(1, Math.floor(baseDamage * multiplier));
+    logTypeEffect(attackType, target.type, multiplier);
+    return finalDamage;
 }
 
 function buildCombatAllies() {
@@ -100,14 +143,14 @@ function updateCombatUI() {
     let html = '<h4>战斗中</h4>';
 
     const renderUnit = (unit, isActive) => {
-        const hpPercent = Math.max(0, (unit.hp / Math.max(1, unit.maxHp)) * 100);
-        const mpPercent = Math.max(0, (unit.mp / Math.max(1, unit.maxMp)) * 100);
+        const hpPercent = Math.max(0, (safeNumber(unit.hp) / Math.max(1, safeNumber(unit.maxHp, 1))) * 100);
+        const mpPercent = Math.max(0, (safeNumber(unit.mp) / Math.max(1, safeNumber(unit.maxMp, 1))) * 100);
         return `
             <div class="combat-unit ${isActive ? 'active' : ''}">
-                <strong>${unit.name}</strong> (${unit.type || unit.class || '单位'})
-                <div class="hp-bar-container"><div class="hp-bar-fill" style="width:${hpPercent}%"></div><div class="hp-bar-text">HP ${unit.hp}/${unit.maxHp}</div></div>
-                <div class="mp-bar-container"><div class="mp-bar-fill" style="width:${mpPercent}%"></div><div class="hp-bar-text">MP ${unit.mp}/${unit.maxMp}</div></div>
-                <div style="font-size:11px;">ATK:${unit.atk} SPD:${unit.spd}</div>
+                <strong>${unit.name}</strong> (${unit.type || unit.class || '单位'}) <span class="combat-level">Lv.${safeNumber(unit.level, 1)}</span>
+                <div class="hp-bar-container"><div class="hp-bar-fill" style="width:${hpPercent}%"></div><div class="hp-bar-text">HP ${formatValue(unit.hp)}/${formatValue(unit.maxHp, 1)}</div></div>
+                <div class="mp-bar-container"><div class="mp-bar-fill" style="width:${mpPercent}%"></div><div class="hp-bar-text">MP ${formatValue(unit.mp)}/${formatValue(unit.maxMp, 1)}</div></div>
+                <div style="font-size:11px;">ATK:${formatValue(unit.atk)} SPD:${formatValue(unit.spd)}</div>
             </div>
         `;
     };
@@ -234,8 +277,9 @@ function useBasicAttack(attacker) {
     if (!cs || !cs.currentUnit || cs.currentUnit.id !== attacker.id) return;
     const targets = attacker.isEnemy ? cs.allies.filter((unit) => unit.hp > 0) : cs.enemies.filter((unit) => unit.hp > 0);
     const target = chooseTarget(targets, { damage: attacker.atk }, attacker);
-    const damage = Math.max(1, Math.floor(attacker.atk * 0.75));
+    const baseDamage = Math.max(1, Math.floor(attacker.atk * 0.75));
     addLog(`<strong>${attacker.name}</strong> 发动了普通攻击。`, 'combat');
+    const damage = applyTypeDamage(baseDamage, attacker, target);
     target.hp = Math.max(0, target.hp - damage);
     addLog(`→ <strong>${target.name}</strong> 受到 ${damage} 点伤害！(剩余HP: ${target.hp})`, 'damage');
     handleLinkedDefeat(target);
@@ -255,6 +299,7 @@ function useSkill(attacker, skillName) {
         nextTurn();
         return;
     }
+    attacker.mp = safeNumber(attacker.mp, 0);
     if (attacker.mp < skill.mpCost) {
         addLog(NARRATIVE.combat.noMp, 'sys');
         showCombatOptions(attacker);
@@ -273,7 +318,7 @@ function useSkill(attacker, skillName) {
         return;
     }
 
-    attacker.mp -= skill.mpCost;
+    attacker.mp = Math.max(0, safeNumber(attacker.mp, 0) - safeNumber(skill.mpCost, 0));
     const target = chooseTarget(targets, skill, attacker);
     addLog(`<strong>${attacker.name}</strong> 使用了 <strong>${skillName}</strong>！`, 'combat');
     if (skill.damage > 0) {
@@ -281,6 +326,7 @@ function useSkill(attacker, skillName) {
         if (cs.allyLightActive && !attacker.isEnemy) {
             damage += 2;
         }
+        damage = applyTypeDamage(damage, attacker, target, skill);
         if (Math.random() < 0.15) {
             damage = Math.floor(damage * 1.5);
             addLog(NARRATIVE.combat.critical, 'damage');
@@ -376,6 +422,12 @@ function attemptCapture(unit, ballName) {
     const enemy = cs.enemies.find((target) => target.hp > 0 && target.captureable);
     if (!enemy) {
         addLog('当前没有可以捕获的目标。', 'sys');
+        showCombatOptions(unit);
+        return;
+    }
+
+    if (enemy.requiredBall && ballName !== enemy.requiredBall) {
+        addLog(`<strong>${enemy.name}</strong> 的星纹防护过于强烈，必须使用 <strong>${enemy.requiredBall}</strong> 才有机会封印。`, 'sys');
         showCombatOptions(unit);
         return;
     }

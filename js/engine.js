@@ -5,6 +5,14 @@ let buttonsArea;
 let teamInfo;
 let currentSaveSlot = null;
 
+function safeNumber(value, fallback = 0) {
+    return Number.isFinite(Number(value)) ? Number(value) : fallback;
+}
+
+function formatValue(value, fallback = 0) {
+    return Number.isFinite(Number(value)) ? Number(value) : fallback;
+}
+
 function createInitialGameState() {
     return {
         phase: 'init',
@@ -31,7 +39,7 @@ function createInventoryTemplate() {
 
 function getItemBucket(itemName) {
     if (BALL_DATA[itemName]) return 'human';
-    if (itemName === '树果') return 'pet';
+    if (['树果', '灵芽露'].includes(itemName)) return 'pet';
     if (['带齿铁片', '溪桥护符', '孤行者徽记', '星光碎片', '怪兽图鉴'].includes(itemName)) return 'special';
     return 'human';
 }
@@ -114,74 +122,109 @@ function renderBar(label, value, maxValue, className) {
 
 function updateNormalUI() {
     const progress = gameState.progress;
-    let html = '';
+    let html = `<div class="status-version">版本 ${GAME_VERSION}</div>`;
+
+    const renderUnitCard = (title, unit, options = {}) => {
+        if (!unit) return '';
+        const expNeeded = EXP_SYSTEM.expToLevel(safeNumber(unit.level, 1));
+        const roleMeta = options.isPet
+            ? `${unit.type} / ${unit.rarity}`
+            : `${unit.class}`;
+        const accentClass = options.isPet ? 'pet' : 'player';
+        return `
+            <section class="status-card ${accentClass}">
+                <div class="status-card-header">
+                    <div>
+                        <div class="status-title">${title}</div>
+                        <div class="status-subtitle">${unit.name} · ${roleMeta}</div>
+                    </div>
+                    <span class="status-pill level">Lv.${safeNumber(unit.level, 1)}</span>
+                </div>
+                <div class="status-grid">
+                    <div class="status-metric hp"><span class="metric-label">HP</span><span class="metric-value">${formatValue(unit.hp)}/${formatValue(unit.maxHp, 1)}</span></div>
+                    <div class="status-metric mp"><span class="metric-label">MP</span><span class="metric-value">${formatValue(unit.mp)}/${formatValue(unit.maxMp, 1)}</span></div>
+                    <div class="status-metric exp"><span class="metric-label">EXP</span><span class="metric-value">${formatValue(unit.exp)}/${expNeeded}</span></div>
+                    <div class="status-metric stat"><span class="metric-label">ATK/SPD</span><span class="metric-value">${formatValue(unit.atk)}/${formatValue(unit.spd)}</span></div>
+                </div>
+            </section>
+        `;
+    };
 
     if (gameState.player) {
-        const expNeeded = EXP_SYSTEM.expToLevel(gameState.player.level);
-        html += `<div class="stat-item"><strong>玩家 - ${gameState.player.class}</strong></div>`;
-        html += `<div class="stat-item"><strong>HP:</strong> ${gameState.player.hp}/${gameState.player.maxHp}</div>`;
-        html += `<div class="stat-item"><strong>MP:</strong> ${gameState.player.mp}/${gameState.player.maxMp}</div>`;
-        html += `<div class="stat-item"><strong>ATK:</strong> ${gameState.player.atk} | <strong>SPD:</strong> ${gameState.player.spd}</div>`;
-        html += `<div class="stat-item"><strong>EXP:</strong> ${gameState.player.exp}/${expNeeded}</div>`;
+        html += renderUnitCard('主角', gameState.player, { isPet: false });
     }
 
     if (gameState.pet) {
-        const expNeeded = EXP_SYSTEM.expToLevel(gameState.pet.level);
-        html += `<div class="stat-item" style="margin-top:10px;"><strong>主宠:</strong> ${gameState.pet.name} (${gameState.pet.type} / ${gameState.pet.rarity})</div>`;
-        html += `<div class="stat-item"><strong>HP:</strong> ${gameState.pet.hp}/${gameState.pet.maxHp}</div>`;
-        html += `<div class="stat-item"><strong>MP:</strong> ${gameState.pet.mp}/${gameState.pet.maxMp}</div>`;
-        html += `<div class="stat-item"><strong>ATK:</strong> ${gameState.pet.atk} | <strong>SPD:</strong> ${gameState.pet.spd}</div>`;
-        html += `<div class="stat-item"><strong>EXP:</strong> ${gameState.pet.exp}/${expNeeded}</div>`;
+        html += renderUnitCard('主宠', gameState.pet, { isPet: true });
     }
 
-    html += `<div style="margin-top:12px;"><strong>队伍模式:</strong> ${progress.partyMode === 'duo' ? '双人同行' : '单人独行'}</div>`;
+    html += `
+        <section class="status-card neutral compact-card">
+            <div class="status-card-header">
+                <div class="status-title">队伍概况</div>
+                <span class="status-pill ${progress.partyMode === 'duo' ? 'duo' : 'solo'}">${progress.partyMode === 'duo' ? '双人同行' : '单人独行'}</span>
+            </div>
+            <div class="status-inline-row">
+                <span class="status-chip money">${CURRENCY_NAME} ${formatValue(gameState.money)}</span>
+                <span class="status-chip chapter">第 ${formatValue(progress.chapter, 1)} 章</span>
+                <span class="status-chip progress">草丛探索 ${formatValue(progress.counters.grasslandExplorations)} 次</span>
+                <span class="status-chip progress">已捕获 ${formatValue(progress.counters.capturesTotal)} 只</span>
+            </div>
+        </section>
+    `;
+
     if (gameState.party.length > 0) {
-        html += '<div style="margin-top:10px;"><strong>同行成员:</strong></div>';
+        html += '<section class="status-card neutral"><div class="status-card-header"><div class="status-title">同行成员</div></div>';
         gameState.party.forEach((member) => {
-            const memberExpNeeded = EXP_SYSTEM.expToLevel(member.level);
-            html += `<div class="stat-item">• ${member.name} (${member.class}) HP ${member.hp}/${member.maxHp} | MP ${member.mp}/${member.maxMp} | EXP ${member.exp}/${memberExpNeeded}</div>`;
+            html += renderUnitCard(`伙伴`, member, { isPet: false });
             if (member.pet) {
-                const memberPetExpNeeded = EXP_SYSTEM.expToLevel(member.pet.level);
-                html += `<div class="stat-item">  ↳ ${member.pet.name} (${member.pet.rarity}) HP ${member.pet.hp}/${member.pet.maxHp} | MP ${member.pet.mp}/${member.pet.maxMp} | EXP ${member.pet.exp}/${memberPetExpNeeded}</div>`;
+                html += renderUnitCard(`${member.name}的宠物`, member.pet, { isPet: true });
             }
         });
+        html += '</section>';
     }
 
-    html += `<div style="margin-top:12px;"><strong>${CURRENCY_NAME}:</strong> ${gameState.money}</div>`;
-    html += '<div style="margin-top:10px;"><strong>人类道具:</strong></div>';
-    const humanItems = Object.keys(gameState.inventory.human).filter((item) => gameState.inventory.human[item] > 0);
-    html += humanItems.length === 0 ? '<div class="stat-item">• 暂无</div>' : humanItems.map((item) => `<div class="stat-item">• ${item} x${gameState.inventory.human[item]}</div>`).join('');
-    html += '<div style="margin-top:10px;"><strong>宠物道具:</strong></div>';
-    const petItems = Object.keys(gameState.inventory.pet).filter((item) => gameState.inventory.pet[item] > 0);
-    html += petItems.length === 0 ? '<div class="stat-item">• 暂无</div>' : petItems.map((item) => `<div class="stat-item">• ${item} x${gameState.inventory.pet[item]}</div>`).join('');
-    html += '<div style="margin-top:10px;"><strong>特殊物品:</strong></div>';
-    const specialItems = Object.keys(gameState.inventory.special).filter((item) => gameState.inventory.special[item] > 0);
-    html += specialItems.length === 0 ? '<div class="stat-item">• 暂无</div>' : specialItems.map((item) => `<div class="stat-item">• ${item} x${gameState.inventory.special[item]}</div>`).join('');
+    const renderInventoryGroup = (title, className, items) => {
+        if (items.length === 0) {
+            return `<div class="inventory-group ${className}"><div class="inventory-title">${title}</div><div class="inventory-empty">暂无</div></div>`;
+        }
+        return `<div class="inventory-group ${className}"><div class="inventory-title">${title}</div>${items.map((item) => `<div class="inventory-line"><span>${item.name}</span><span>x${item.count}</span></div>`).join('')}</div>`;
+    };
 
-    html += '<div style="margin-top:10px;"><strong>后备宠物:</strong></div>';
+    const humanItems = Object.keys(gameState.inventory.human).filter((item) => gameState.inventory.human[item] > 0).map((item) => ({ name: item, count: gameState.inventory.human[item] }));
+    const petItems = Object.keys(gameState.inventory.pet).filter((item) => gameState.inventory.pet[item] > 0).map((item) => ({ name: item, count: gameState.inventory.pet[item] }));
+    const specialItems = Object.keys(gameState.inventory.special).filter((item) => gameState.inventory.special[item] > 0).map((item) => ({ name: item, count: gameState.inventory.special[item] }));
+
+    html += `
+        <section class="status-card neutral compact-card">
+            <div class="status-card-header"><div class="status-title">背包</div></div>
+            ${renderInventoryGroup('人类道具', 'human', humanItems)}
+            ${renderInventoryGroup('宠物道具', 'pet', petItems)}
+            ${renderInventoryGroup('特殊物品', 'special', specialItems)}
+        </section>
+    `;
+
+    html += '<section class="status-card neutral compact-card"><div class="status-card-header"><div class="status-title">后备宠物</div></div>';
     if (gameState.petReserve.length === 0) {
-        html += '<div class="stat-item">• 暂无</div>';
+        html += '<div class="inventory-empty">暂无</div>';
     } else {
         gameState.petReserve.forEach((pet, index) => {
-            html += `<div class="stat-item">• ${index + 1}. ${pet.name} (${pet.rarity}) Lv.${pet.level}</div>`;
+            html += `<div class="reserve-line"><span>${index + 1}. ${pet.name}</span><span class="status-pill rarity">${pet.rarity}</span><span class="status-pill level">Lv.${safeNumber(pet.level, 1)}</span></div>`;
         });
     }
+    html += '</section>';
 
-    html += '<div style="margin-top:10px;"><strong>任务:</strong></div>';
+    html += '<section class="status-card neutral compact-card"><div class="status-card-header"><div class="status-title">任务与进度</div></div>';
     const activeQuests = Object.keys(progress.questStates).filter((questId) => ['accepted', 'completed'].includes(progress.questStates[questId]));
     if (activeQuests.length === 0) {
-        html += '<div class="stat-item">• 当前没有进行中的委托</div>';
+        html += '<div class="inventory-empty">当前没有进行中的委托</div>';
     } else {
         activeQuests.forEach((questId) => {
-            html += `<div class="stat-item">• ${QUESTS[questId].title} - ${getQuestProgressText(questId)}</div>`;
+            html += `<div class="quest-line"><span>${QUESTS[questId].title}</span><span>${getQuestProgressText(questId)}</span></div>`;
         });
     }
-
-    html += '<div style="margin-top:10px;"><strong>进度:</strong></div>';
-    html += `<div class="stat-item">章节: 第${progress.chapter}章</div>`;
-    html += `<div class="stat-item">阶段: ${progress.storyStep}</div>`;
-    html += `<div class="stat-item">草丛探索: ${progress.counters.grasslandExplorations} 次</div>`;
-    html += `<div class="stat-item">已捕获宠物: ${progress.counters.capturesTotal} 只</div>`;
+    html += `<div class="status-inline-row"><span class="status-chip progress">阶段 ${progress.storyStep}</span></div>`;
+    html += '</section>';
 
     teamInfo.innerHTML = html;
 }
@@ -390,10 +433,10 @@ function healRosterToFull() {
 function viewStatus() {
     addLog('=== 当前状态 ===', 'sys');
     if (gameState.player) {
-        addLog(`玩家 ${gameState.player.class} | HP ${gameState.player.hp}/${gameState.player.maxHp} | MP ${gameState.player.mp}/${gameState.player.maxMp} | ATK ${gameState.player.atk} | SPD ${gameState.player.spd}`);
+        addLog(`玩家 ${gameState.player.class} Lv.${safeNumber(gameState.player.level, 1)} | HP ${formatValue(gameState.player.hp)}/${formatValue(gameState.player.maxHp, 1)} | MP ${formatValue(gameState.player.mp)}/${formatValue(gameState.player.maxMp, 1)} | ATK ${formatValue(gameState.player.atk)} | SPD ${formatValue(gameState.player.spd)}`);
     }
     if (gameState.pet) {
-        addLog(`主宠 ${gameState.pet.name} (${gameState.pet.rarity}) | HP ${gameState.pet.hp}/${gameState.pet.maxHp} | MP ${gameState.pet.mp}/${gameState.pet.maxMp}`);
+        addLog(`主宠 ${gameState.pet.name} Lv.${safeNumber(gameState.pet.level, 1)} (${gameState.pet.rarity}) | HP ${formatValue(gameState.pet.hp)}/${formatValue(gameState.pet.maxHp, 1)} | MP ${formatValue(gameState.pet.mp)}/${formatValue(gameState.pet.maxMp, 1)}`);
     }
     addLog(`当前持有 ${CURRENCY_NAME}: ${gameState.money}`);
     addLog(`队伍模式: ${gameState.progress.partyMode === 'duo' ? '双人同行，经验减半' : '单人独行，经验与赏金加成'}`);
@@ -516,10 +559,13 @@ function openMonsterDex() {
     addLog('=== 怪兽图鉴 ===', 'sys');
     Object.keys(MONSTER_DEX).forEach((name) => {
         const entry = MONSTER_DEX[name];
+        const captureText = entry.capturable
+            ? (entry.captureRequirement ? `可捕获，需要 ${entry.captureRequirement}` : '可捕获')
+            : '不可捕获';
         addLog(`<strong>${entry.id} ${name}</strong> | 稀有度: ${entry.rarity} | 属性: ${entry.type}`, 'sys');
         addLog(`能力: HP ${entry.stats.hp} / MP ${entry.stats.mp} / ATK ${entry.stats.atk} / SPD ${entry.stats.spd}`, 'sys');
         addLog(`技能: ${entry.skills.join('、')}`, 'sys');
-        addLog(`出没地: ${entry.habitat} | ${entry.capturable ? '可捕获' : '不可捕获'} | ${entry.note}`, 'dialogue');
+        addLog(`出没地: ${entry.habitat} | ${captureText} | ${entry.note}`, 'dialogue');
     });
     setButtons([
         { text: '返回村庄主界面', action: enterHub },
@@ -604,6 +650,18 @@ function randomFromArray(items) {
     return items[Math.floor(Math.random() * items.length)];
 }
 
+function randomWeightedEncounter(areaKey) {
+    const pool = ENCOUNTER_POOLS[areaKey] || [];
+    const totalWeight = pool.reduce((sum, entry) => sum + entry.weight, 0);
+    if (totalWeight <= 0) return null;
+    let roll = Math.random() * totalWeight;
+    for (const entry of pool) {
+        roll -= entry.weight;
+        if (roll <= 0) return entry.name;
+    }
+    return pool[pool.length - 1]?.name || null;
+}
+
 function exploreGrassland() {
     gameState.phase = 'explore';
     gameState.progress.currentArea = 'grassland';
@@ -613,7 +671,7 @@ function exploreGrassland() {
     addLog(NARRATIVE.explore.description);
 
     if (!gameState.progress.flags.firstBattleDone) {
-        const enemyType = randomFromArray(['大牙鼠', '咕咕鸟']);
+        const enemyType = randomFromArray(['大牙鼠', '草跳兔', '灰羽鸦']);
         addLog(NARRATIVE.explore.encounter.replace('{{enemy}}', enemyType), 'combat');
         startCombat(enemyType, { area: 'grassland', encounterType: 'wild', storyEvent: 'firstWildBattle' });
         return;
@@ -626,7 +684,7 @@ function exploreGrassland() {
 
     const roll = Math.random();
     if (roll < 0.6) {
-        const enemyType = Math.random() < 0.7 ? '大牙鼠' : '咕咕鸟';
+        const enemyType = randomWeightedEncounter('grassland') || '大牙鼠';
         addLog(NARRATIVE.explore.encounter.replace('{{enemy}}', enemyType), 'combat');
         startCombat(enemyType, { area: 'grassland', encounterType: 'wild' });
         return;
@@ -732,7 +790,7 @@ function exploreForest() {
 
     if (!gameState.progress.flags.forestEncounterDone) {
         addLog(NARRATIVE.story.forestBattleIntro, 'combat');
-        startCombat('长角虫', { area: 'forest', encounterType: 'wild', storyEvent: 'forestFirstBattle' });
+        startCombat('森林蛛', { area: 'forest', encounterType: 'wild', storyEvent: 'forestFirstBattle' });
         return;
     }
 
@@ -748,7 +806,7 @@ function exploreForest() {
 
     const roll = Math.random();
     if (roll < 0.55) {
-        const enemyType = Math.random() < 0.75 ? '长角虫' : '电气菇';
+        const enemyType = randomWeightedEncounter('forest') || '森叶鹿';
         addLog(NARRATIVE.forest.encounter.replace('{{enemy}}', enemyType), 'combat');
         startCombat(enemyType, { area: 'forest', encounterType: 'wild' });
         return;
@@ -1047,7 +1105,14 @@ function checkLevelUp(unit, isPlayerUnit) {
         unit.exp -= expNeeded;
         unit.level += 1;
 
-        const growth = isPlayerUnit ? EXP_SYSTEM.playerGrowth[unit.class] : EXP_SYSTEM.petGrowth;
+        const growthTemplate = isPlayerUnit ? EXP_SYSTEM.playerGrowth[unit.class] : EXP_SYSTEM.petGrowth;
+        const growth = growthTemplate || { hp: 3, mp: 2, atk: 1, spd: 1 };
+        unit.maxHp = Math.max(1, safeNumber(unit.maxHp, unit.hp || growth.hp || 1));
+        unit.maxMp = Math.max(0, safeNumber(unit.maxMp, unit.mp || growth.mp || 0));
+        unit.hp = safeNumber(unit.hp, unit.maxHp);
+        unit.mp = safeNumber(unit.mp, unit.maxMp);
+        unit.atk = safeNumber(unit.atk, 0);
+        unit.spd = safeNumber(unit.spd, 0);
         const missingHp = Math.max(0, unit.maxHp - unit.hp);
         const oldMaxHp = unit.maxHp;
         const oldMaxMp = unit.maxMp;
@@ -1104,15 +1169,77 @@ function mergeProgress(progress) {
     };
 }
 
+function normalizeActorRecord(unit, fallback = {}) {
+    if (!unit) return null;
+    const normalized = {
+        ...fallback,
+        ...unit
+    };
+    normalized.level = Math.max(1, safeNumber(normalized.level, 1));
+    normalized.exp = Math.max(0, safeNumber(normalized.exp, 0));
+    normalized.maxHp = Math.max(1, safeNumber(normalized.maxHp, normalized.hp ?? fallback.maxHp ?? 1));
+    normalized.maxMp = Math.max(0, safeNumber(normalized.maxMp, normalized.mp ?? fallback.maxMp ?? 0));
+    normalized.hp = Math.max(0, Math.min(normalized.maxHp, safeNumber(normalized.hp, normalized.maxHp)));
+    normalized.mp = Math.max(0, Math.min(normalized.maxMp, safeNumber(normalized.mp, normalized.maxMp)));
+    normalized.atk = Math.max(0, safeNumber(normalized.atk, fallback.atk ?? 0));
+    normalized.spd = Math.max(0, safeNumber(normalized.spd, fallback.spd ?? 0));
+    normalized.skills = Array.isArray(normalized.skills) ? [...normalized.skills] : [...(fallback.skills || [])];
+    return normalized;
+}
+
+function normalizePlayerRecord(player) {
+    if (!player) return null;
+    const classTemplate = CLASSES[player.class] || { hp: 1, mp: 0, atk: 0, spd: 0, skills: [] };
+    return normalizeActorRecord(player, {
+        id: 'player-main',
+        name: '玩家',
+        class: player.class,
+        maxHp: classTemplate.hp,
+        maxMp: classTemplate.mp,
+        hp: classTemplate.hp,
+        mp: classTemplate.mp,
+        atk: classTemplate.atk,
+        spd: classTemplate.spd,
+        skills: classTemplate.skills,
+        isPlayer: true,
+        isEnemy: false,
+        team: 'ally'
+    });
+}
+
 function normalizePetRecord(pet) {
     if (!pet) return null;
     const template = PETS[pet.name];
-    return {
-        ...createPetInstance(pet.name),
+    const basePet = createPetInstance(pet.name);
+    return normalizeActorRecord({
+        ...basePet,
         ...template,
-        ...pet,
-        skills: pet.skills ? [...pet.skills] : [...template.skills]
-    };
+        ...pet
+    }, basePet);
+}
+
+function normalizePartyMemberRecord(member) {
+    if (!member) return null;
+    const classTemplate = CLASSES[member.class] || { hp: 1, mp: 0, atk: 0, spd: 0, skills: [] };
+    const normalizedMember = normalizeActorRecord(member, {
+        id: member.id || `npc-${member.name}`,
+        name: member.name,
+        class: member.class,
+        maxHp: classTemplate.hp,
+        maxMp: classTemplate.mp,
+        hp: classTemplate.hp,
+        mp: classTemplate.mp,
+        atk: classTemplate.atk,
+        spd: classTemplate.spd,
+        skills: classTemplate.skills,
+        isEnemy: false,
+        team: 'ally'
+    });
+    normalizedMember.pet = normalizePetRecord(member.pet);
+    if (normalizedMember.pet) {
+        normalizedMember.pet.owner = member.name;
+    }
+    return normalizedMember;
 }
 
 function saveCurrentGame() {
@@ -1149,18 +1276,15 @@ function loadGame(slot) {
     const data = JSON.parse(saveData);
     currentSaveSlot = slot;
     gameState = createInitialGameState();
-    gameState.player = data.player || null;
+    gameState.player = normalizePlayerRecord(data.player);
     gameState.pet = normalizePetRecord(data.pet);
     if (gameState.pet) gameState.pet.owner = '玩家';
     gameState.petReserve = (data.petReserve || []).map((pet) => normalizePetRecord(pet));
-    gameState.party = (data.party || []).map((member) => ({
-        ...member,
-        pet: normalizePetRecord(member.pet)
-    }));
+    gameState.party = (data.party || []).map((member) => normalizePartyMemberRecord(member)).filter(Boolean);
     gameState.inventory = normalizeInventory(data.inventory);
     gameState.money = typeof data.money === 'number' ? data.money : 0;
     gameState.phase = 'hub';
-    gameState.nextPetUid = data.nextPetUid || 1;
+    gameState.nextPetUid = safeNumber(data.nextPetUid, 1);
     gameState.progress = mergeProgress(data.progress);
 
     hideAllMenus();
@@ -1293,10 +1417,18 @@ function startNewGame(slot) {
     initEngine();
 }
 
+function syncVersionLabels() {
+    const menuVersion = document.getElementById('gameVersionLabel');
+    const aboutVersion = document.getElementById('aboutVersionLabel');
+    if (menuVersion) menuVersion.textContent = `Version ${GAME_VERSION}`;
+    if (aboutVersion) aboutVersion.textContent = `版本: ${GAME_VERSION}`;
+}
+
 function initDomRefs() {
     logArea = document.getElementById('logArea');
     buttonsArea = document.getElementById('buttonsArea');
     teamInfo = document.getElementById('teamInfo');
+    syncVersionLabels();
 }
 
 function initEngine() {

@@ -1,9 +1,24 @@
-﻿const GAME_VERSION = '0.9.0';
+﻿const GAME_VERSION = '0.10.0';
+const VERSION_HISTORY = [
+    { version: '0.10.0', date: '2026-03-02', summary: '修复等级与 MP 显示、旧存档数值归一化、状态面板重构、加入更新日志体系。' },
+    { version: '0.9.0', date: '2026-03-02', summary: '完成第一章基础闭环、扩展宠物图鉴与属性克制。' }
+];
 
 // ========== 游戏数据常量 ==========
 
 const CURRENCY_NAME = '风纹币';
 const RARITY_ORDER = ['普通', '稀有', '超稀有', '极品', '神兽'];
+const TYPE_LIST = ['火', '水', '草', '普通', '飞行', '虫', '电', '机械'];
+const TYPE_CHART = {
+    '火': { strongAgainst: ['草', '虫'], weakAgainst: ['水'] },
+    '水': { strongAgainst: ['火'], weakAgainst: ['草', '电'] },
+    '草': { strongAgainst: ['水'], weakAgainst: ['火', '虫'] },
+    '普通': { strongAgainst: [], weakAgainst: [] },
+    '飞行': { strongAgainst: ['草', '虫'], weakAgainst: ['电'] },
+    '虫': { strongAgainst: ['草'], weakAgainst: ['火', '飞行'] },
+    '电': { strongAgainst: ['飞行', '水'], weakAgainst: ['草'] },
+    '机械': { strongAgainst: [], weakAgainst: [] }
+};
 
 const STARTER_GIFT = {
     money: 20,
@@ -51,8 +66,9 @@ const SHOP_ITEMS = [
 
 const PET_MARKET = [
     { name: '大牙鼠', price: 80, description: '便宜耐用，适合新手补位。' },
+    { name: '草跳兔', price: 95, description: '速度很快，适合消耗与游击。' },
     { name: '咕咕鸟', price: 120, description: '速度很快，适合抢先手。' },
-    { name: '长角虫', price: 140, description: '森林里常见的硬壳控制型宠物。', requiresForest: true }
+    { name: '森叶鹿', price: 160, description: '森林中的回复型宠物，适合稳扎稳打。', requiresForest: true }
 ];
 
 const QUESTS = {
@@ -83,8 +99,16 @@ const MONSTER_DEX = {
     '叶芽兽': { id: '#003', rarity: '稀有', type: '草', stats: { hp: 22, mp: 13, atk: 5, spd: 4 }, skills: ['藤鞭', '根系抓', '生机'], habitat: '初始三选一', capturable: false, note: '御三家之一，兼具回复与控制。' },
     '大牙鼠': { id: '#004', rarity: '普通', type: '普通', stats: { hp: 18, mp: 6, atk: 4, spd: 4 }, skills: ['咬住', '聚气', '猛击'], habitat: '回声草丛', capturable: true, note: '最常见的草丛野宠，攻击朴素但数量多。' },
     '咕咕鸟': { id: '#005', rarity: '稀有', type: '飞行', stats: { hp: 16, mp: 10, atk: 5, spd: 7 }, skills: ['啄击', '顺风', '风切'], habitat: '回声草丛', capturable: true, note: '高速型飞行宠物，适合先手压制。' },
-    '长角虫': { id: '#006', rarity: '普通', type: '虫', stats: { hp: 20, mp: 8, atk: 5, spd: 5 }, skills: ['虫咬', '吐丝', '甲壳冲锋'], habitat: '呢喃森林', capturable: true, note: '森林中的常见硬壳宠物，兼具干扰与冲锋。' },
-    '电气菇': { id: '#007', rarity: '超稀有', type: '电/草', stats: { hp: 18, mp: 14, atk: 6, spd: 6 }, skills: ['电击', '麻痹粉', '雷霆冲'], habitat: '呢喃森林', capturable: true, note: '稀有林间异种，兼具控场与爆发。' }
+    '电气菇': { id: '#007', rarity: '超稀有', type: '电/草', stats: { hp: 18, mp: 14, atk: 6, spd: 6 }, skills: ['电击', '麻痹粉', '雷霆冲'], habitat: '呢喃森林', capturable: true, note: '稀有林间异种，兼具控场与爆发。' },
+    '草跳兔': { id: '#008', rarity: '普通', type: '草', stats: { hp: 19, mp: 8, atk: 5, spd: 6 }, skills: ['飞踢', '叶刃', '小恢复'], habitat: '回声草丛', capturable: true, note: '速度型草宠，适合消耗战。' },
+    '灰羽鸦': { id: '#009', rarity: '普通', type: '飞行', stats: { hp: 17, mp: 8, atk: 5, spd: 6 }, skills: ['啄击', '扰乱', '俯冲'], habitat: '回声草丛', capturable: true, note: '草丛空中干扰者。' },
+    '小甲壳虫': { id: '#010', rarity: '普通', type: '虫', stats: { hp: 22, mp: 6, atk: 4, spd: 4 }, skills: ['撞击', '硬壳', '虫咬'], habitat: '回声草丛', capturable: true, note: '低速高耐久。' },
+    '水纹龟': { id: '#011', rarity: '普通', type: '水', stats: { hp: 24, mp: 7, atk: 4, spd: 3 }, skills: ['水弹', '防御姿态', '潮汐拍'], habitat: '回声草丛', capturable: true, note: '草丛里的慢速肉盾。' },
+    '森叶鹿': { id: '#012', rarity: '普通', type: '草', stats: { hp: 23, mp: 8, atk: 5, spd: 4 }, skills: ['藤刺', '守护', '治愈气息'], habitat: '呢喃森林', capturable: true, note: '森林的回复型单位。' },
+    '森林蛛': { id: '#013', rarity: '普通', type: '虫', stats: { hp: 20, mp: 9, atk: 5, spd: 5 }, skills: ['蛛网', '毒刺', '潜伏'], habitat: '呢喃森林', capturable: true, note: '控制流宠物。' },
+    '烈风隼': { id: '#014', rarity: '超稀有', type: '飞行', stats: { hp: 18, mp: 12, atk: 7, spd: 8 }, skills: ['风刃', '急袭', '暴风'], habitat: '回声草丛', capturable: true, note: '当前版本最快单位。' },
+    '炽尾蜥': { id: '#015', rarity: '超稀有', type: '火', stats: { hp: 21, mp: 13, atk: 7, spd: 5 }, skills: ['火焰冲', '灼烧', '炎爆'], habitat: '呢喃森林', capturable: true, note: '森林深处火系变种。' },
+    '星纹鹿王': { id: '#016', rarity: '极品', type: '草', stats: { hp: 28, mp: 18, atk: 8, spd: 6 }, skills: ['星辉冲', '森之庇护', '枝影束缚'], habitat: '呢喃森林（极低概率）', capturable: true, captureRequirement: '究极球', note: '第一章隐藏 Boss 级捕获宠，需要特殊规格的封印手段。' }
 };
 const STORY_STEPS = {
     INTRO: 'intro',
@@ -174,8 +198,35 @@ const PETS = {
     '叶芽兽': { type: '草', rarity: '稀有', hp: 22, mp: 13, atk: 5, spd: 4, skills: ['藤鞭', '根系抓', '生机'] },
     '大牙鼠': { type: '普通', rarity: '普通', hp: 18, mp: 6, atk: 4, spd: 4, skills: ['咬住', '聚气', '猛击'] },
     '咕咕鸟': { type: '飞行', rarity: '稀有', hp: 16, mp: 10, atk: 5, spd: 7, skills: ['啄击', '顺风', '风切'] },
-    '长角虫': { type: '虫', rarity: '普通', hp: 20, mp: 8, atk: 5, spd: 5, skills: ['虫咬', '吐丝', '甲壳冲锋'] },
-    '电气菇': { type: '电/草', rarity: '超稀有', hp: 18, mp: 14, atk: 6, spd: 6, skills: ['电击', '麻痹粉', '雷霆冲'] }
+    '电气菇': { type: '电/草', rarity: '超稀有', hp: 18, mp: 14, atk: 6, spd: 6, skills: ['电击', '麻痹粉', '雷霆冲'] },
+    '草跳兔': { type: '草', rarity: '普通', hp: 19, mp: 8, atk: 5, spd: 6, skills: ['飞踢', '叶刃', '小恢复'] },
+    '灰羽鸦': { type: '飞行', rarity: '普通', hp: 17, mp: 8, atk: 5, spd: 6, skills: ['啄击', '扰乱', '俯冲'] },
+    '小甲壳虫': { type: '虫', rarity: '普通', hp: 22, mp: 6, atk: 4, spd: 4, skills: ['撞击', '硬壳', '虫咬'] },
+    '水纹龟': { type: '水', rarity: '普通', hp: 24, mp: 7, atk: 4, spd: 3, skills: ['水弹', '防御姿态', '潮汐拍'] },
+    '森叶鹿': { type: '草', rarity: '普通', hp: 23, mp: 8, atk: 5, spd: 4, skills: ['藤刺', '守护', '治愈气息'] },
+    '森林蛛': { type: '虫', rarity: '普通', hp: 20, mp: 9, atk: 5, spd: 5, skills: ['蛛网', '毒刺', '潜伏'] },
+    '烈风隼': { type: '飞行', rarity: '超稀有', hp: 18, mp: 12, atk: 7, spd: 8, skills: ['风刃', '急袭', '暴风'] },
+    '炽尾蜥': { type: '火', rarity: '超稀有', hp: 21, mp: 13, atk: 7, spd: 5, skills: ['火焰冲', '灼烧', '炎爆'] },
+    '星纹鹿王': { type: '草', rarity: '极品', hp: 28, mp: 18, atk: 8, spd: 6, skills: ['星辉冲', '森之庇护', '枝影束缚'], requiredBall: '究极球' }
+};
+
+const ENCOUNTER_POOLS = {
+    grassland: [
+        { name: '大牙鼠', weight: 20 },
+        { name: '草跳兔', weight: 18 },
+        { name: '灰羽鸦', weight: 16 },
+        { name: '小甲壳虫', weight: 14 },
+        { name: '水纹龟', weight: 12 },
+        { name: '咕咕鸟', weight: 12 },
+        { name: '烈风隼', weight: 8 }
+    ],
+    forest: [
+        { name: '森叶鹿', weight: 26 },
+        { name: '森林蛛', weight: 24 },
+        { name: '电气菇', weight: 16 },
+        { name: '炽尾蜥', weight: 10 },
+        { name: '星纹鹿王', weight: 2 }
+    ]
 };
 
 const ENEMIES = {
@@ -205,39 +256,62 @@ const NPC_CHARACTERS = {
 };
 
 const SKILL_DATA = {
-    '重击': { damage: 7, mpCost: 0, desc: '沉肩发力，朴实而狠。' },
-    '盾墙': { damage: 0, mpCost: 3, desc: '稳住架势，本回合获得额外减伤。' },
-    '怒吼': { damage: 0, mpCost: 4, desc: '吼声振奋全队，临时提速。' },
-    '连射': { damage: 8, mpCost: 0, desc: '连发两箭，打乱敌人节奏。' },
-    '刺破': { damage: 6, mpCost: 2, desc: '瞄准关节与空隙，拖慢目标动作。' },
-    '捕猎陷阱': { damage: 0, mpCost: 3, desc: '布下陷阱，为后续攻击制造机会。' },
+    '重击': { damage: 7, mpCost: 0, type: '普通', desc: '沉肩发力，朴实而狠。' },
+    '盾墙': { damage: 0, mpCost: 3, type: '普通', desc: '稳住架势，本回合获得额外减伤。' },
+    '怒吼': { damage: 0, mpCost: 4, type: '普通', desc: '吼声振奋全队，临时提速。' },
+    '连射': { damage: 8, mpCost: 0, type: '普通', desc: '连发两箭，打乱敌人节奏。' },
+    '刺破': { damage: 6, mpCost: 2, type: '普通', desc: '瞄准关节与空隙，拖慢目标动作。' },
+    '捕猎陷阱': { damage: 0, mpCost: 3, type: '普通', desc: '布下陷阱，为后续攻击制造机会。' },
     '元素灼烧': { damage: 9, mpCost: 4, desc: '借由绑定宠物的属性引燃元素。' },
     '奥术屏障': { damage: 0, mpCost: 5, desc: '用法阵撑起薄而坚韧的护壁。' },
     '属性吸收': { damage: -4, mpCost: 4, desc: '抽取逸散元素，修补自身伤势。' },
     '治愈': { damage: -5, mpCost: 4, desc: '轻声祈祷，使伤口慢慢闭合。' },
     '祈祷': { damage: 0, mpCost: 5, desc: '为全队披上一层稳固的祝福。' },
     '神圣庇护': { damage: 0, mpCost: 6, desc: '在危急前留下一道最后的保险。' },
-    '抓击': { damage: 3, mpCost: 0, desc: '普通攻击。' },
-    '火焰爪': { damage: 5, mpCost: 3, desc: '指尖火光舔过敌人的防线。' },
-    '小火花': { damage: 5, mpCost: 4, desc: '吐出火星，有概率灼伤对手。' },
-    '撞击': { damage: 3, mpCost: 0, desc: '普通攻击。' },
-    '水弹': { damage: 5, mpCost: 3, desc: '凝水成珠，击打目标。' },
-    '水枪': { damage: 5, mpCost: 4, desc: '高压水流直线贯穿。' },
-    '藤鞭': { damage: 4, mpCost: 3, desc: '抽出带刺藤蔓袭击目标。' },
-    '根系抓': { damage: 4, mpCost: 4, desc: '根须缠住敌人，拖缓脚步。' },
-    '生机': { damage: -3, mpCost: 3, desc: '借草木之息回复自己。' },
-    '咬住': { damage: 2, mpCost: 0, desc: '普通攻击。' },
-    '聚气': { damage: 0, mpCost: 2, desc: '收束气息，等待下一次爆发。' },
-    '猛击': { damage: 6, mpCost: 0, desc: '普通的重型扑击。' },
-    '啄击': { damage: 3, mpCost: 2, desc: '飞行属性攻击。' },
-    '顺风': { damage: 0, mpCost: 3, desc: '借风调整身位，提高闪避。' },
-    '风切': { damage: 6, mpCost: 4, desc: '将风压压成锋刃。' },
-    '虫咬': { damage: 4, mpCost: 2, desc: '虫属性攻击。' },
-    '吐丝': { damage: 0, mpCost: 2, desc: '吐出黏丝，拖慢目标。' },
-    '甲壳冲锋': { damage: 7, mpCost: 4, desc: '硬壳顶撞，进攻与防御并行。' },
-    '电击': { damage: 5, mpCost: 3, desc: '放出短促而猛烈的电流。' },
-    '麻痹粉': { damage: 0, mpCost: 4, desc: '粉末附着神经，使行动迟滞。' },
-    '雷霆冲': { damage: 8, mpCost: 5, desc: '将电流包裹全身后猛扑。' }
+    '抓击': { damage: 3, mpCost: 0, type: '普通', desc: '普通攻击。' },
+    '火焰爪': { damage: 5, mpCost: 3, type: '火', desc: '指尖火光舔过敌人的防线。' },
+    '小火花': { damage: 5, mpCost: 4, type: '火', desc: '吐出火星，有概率灼伤对手。' },
+    '撞击': { damage: 3, mpCost: 0, type: '普通', desc: '普通攻击。' },
+    '水弹': { damage: 5, mpCost: 3, type: '水', desc: '凝水成珠，击打目标。' },
+    '水枪': { damage: 5, mpCost: 4, type: '水', desc: '高压水流直线贯穿。' },
+    '藤鞭': { damage: 4, mpCost: 3, type: '草', desc: '抽出带刺藤蔓袭击目标。' },
+    '根系抓': { damage: 4, mpCost: 4, type: '草', desc: '根须缠住敌人，拖缓脚步。' },
+    '生机': { damage: -3, mpCost: 3, type: '草', desc: '借草木之息回复自己。' },
+    '咬住': { damage: 2, mpCost: 0, type: '普通', desc: '普通攻击。' },
+    '聚气': { damage: 0, mpCost: 2, type: '普通', desc: '收束气息，等待下一次爆发。' },
+    '猛击': { damage: 6, mpCost: 0, type: '普通', desc: '普通的重型扑击。' },
+    '啄击': { damage: 3, mpCost: 2, type: '飞行', desc: '飞行属性攻击。' },
+    '顺风': { damage: 0, mpCost: 3, type: '飞行', desc: '借风调整身位，提高闪避。' },
+    '风切': { damage: 6, mpCost: 4, type: '飞行', desc: '将风压压成锋刃。' },
+    '虫咬': { damage: 4, mpCost: 2, type: '虫', desc: '虫属性攻击。' },
+    '吐丝': { damage: 0, mpCost: 2, type: '虫', desc: '吐出黏丝，拖慢目标。' },
+    '甲壳冲锋': { damage: 7, mpCost: 4, type: '虫', desc: '硬壳顶撞，进攻与防御并行。' },
+    '电击': { damage: 5, mpCost: 3, type: '电', desc: '放出短促而猛烈的电流。' },
+    '麻痹粉': { damage: 0, mpCost: 4, type: '电', desc: '粉末附着神经，使行动迟滞。' },
+    '雷霆冲': { damage: 8, mpCost: 5, type: '电', desc: '将电流包裹全身后猛扑。' },
+    '飞踢': { damage: 4, mpCost: 0, type: '普通', desc: '跃起后借势踢击。' },
+    '叶刃': { damage: 6, mpCost: 3, type: '草', desc: '凝出叶锋划开目标防线。' },
+    '小恢复': { damage: -4, mpCost: 3, type: '草', desc: '借草息略微恢复伤势。' },
+    '扰乱': { damage: 0, mpCost: 2, type: '飞行', desc: '绕着目标急旋，扰乱其动作。' },
+    '俯冲': { damage: 6, mpCost: 3, type: '飞行', desc: '自上而下扑击目标。' },
+    '硬壳': { damage: 0, mpCost: 2, type: '虫', desc: '收紧甲壳，准备抗下重击。' },
+    '防御姿态': { damage: 0, mpCost: 2, type: '水', desc: '缩起四肢，稳稳守住阵脚。' },
+    '潮汐拍': { damage: 6, mpCost: 3, type: '水', desc: '裹着潮声拍向敌人。' },
+    '藤刺': { damage: 5, mpCost: 3, type: '草', desc: '连生的藤刺从地面突起。' },
+    '守护': { damage: 0, mpCost: 3, type: '草', desc: '垂下叶幕，为自己争取喘息。' },
+    '治愈气息': { damage: -5, mpCost: 4, type: '草', desc: '吐出柔和气息，修复伤势。' },
+    '蛛网': { damage: 0, mpCost: 2, type: '虫', desc: '铺开黏网限制目标行动。' },
+    '毒刺': { damage: 5, mpCost: 3, type: '虫', desc: '刺肢闪电般刺出。' },
+    '潜伏': { damage: 0, mpCost: 3, type: '虫', desc: '沉入阴影，等待反击时机。' },
+    '风刃': { damage: 6, mpCost: 3, type: '飞行', desc: '卷出锐利风刃。' },
+    '急袭': { damage: 7, mpCost: 3, type: '飞行', desc: '以极快速度压近目标。' },
+    '暴风': { damage: 9, mpCost: 5, type: '飞行', desc: '掀起猛烈风压席卷前方。' },
+    '火焰冲': { damage: 6, mpCost: 3, type: '火', desc: '裹火撞向目标。' },
+    '灼烧': { damage: 7, mpCost: 4, type: '火', desc: '留下持续发烫的灼痕。' },
+    '炎爆': { damage: 9, mpCost: 5, type: '火', desc: '引爆积蓄的火元素。' },
+    '星辉冲': { damage: 8, mpCost: 5, type: '草', desc: '裹着星纹光屑向前冲撞。' },
+    '森之庇护': { damage: -6, mpCost: 5, type: '草', desc: '调动林中生机，回复全队伤势。' },
+    '枝影束缚': { damage: 6, mpCost: 4, type: '草', desc: '枝影交错，将目标牢牢缠住。' }
 };
 
 const NARRATIVE = {
@@ -281,8 +355,8 @@ const NARRATIVE = {
         soloReward: '你获得了 <strong>孤行者徽记</strong> 与 40 风纹币。今后单人战斗会获得额外经验与赏金，但你也将独自承担全部压力。',
         duoPenalty: '林晓加入队伍。双人队伍更稳，但战斗经验会被平分，额外赏金也会减少。',
         forestUnlocked: '村口通往呢喃森林的小路被重新清理出来了。更深的阴影、更重的风险，也在那边等着你。',
-        forestBattleIntro: '树根下传来湿冷的摩擦声，一只长角虫顶开落叶，亮出甲壳边缘冰冷的反光。',
-        forestBattleVictory: '长角虫倒下后，前方一小片缠藤忽然晃动起来。你拨开枯枝，发现藤幕后藏着一扇钉满铆钉的旧金属门。',
+        forestBattleIntro: '盘根后的阴影忽然向下垂落，一只森林蛛借着细丝无声逼近，足肢敲得枯叶发出细密的沙沙声。',
+        forestBattleVictory: '击退森林蛛后，前方一小片缠藤忽然晃动起来。你拨开枯枝，发现藤幕后藏着一扇钉满铆钉的旧金属门。',
         labDiscovery: '那扇门后并不是猎人小屋，而是一条带着机油味与消毒水味的狭窄通道。墙上暗淡的灯管闪了两下，像是有东西刚刚苏醒。',
         dreamlandAgent: '<strong>幻梦乐园代理</strong>的声音从深处传来，轻飘飘得近乎温柔：“欢迎，误入者。既然已经走到这里，总该见见我们为这个世界准备的新秩序。”',
         robotDefeat: '最后一束火花熄灭后，实验室终于安静下来。你在碎裂的金属板下拾起一枚微微发亮的棱形碎片，它冷得像一小块凝固星光。',

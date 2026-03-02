@@ -76,7 +76,8 @@ body {
     overflow-y: auto;
     min-height: 220px;
     max-height: 34vh;
-}`r`n
+}
+
 
 .log-entry {
     margin-bottom: 15px;
@@ -369,3 +370,210 @@ button:disabled {
     letter-spacing: 1px;
 }
 
+
+
+.game-version {
+    margin: 8px 0 0 0;
+    color: #9fb59f;
+    font-size: 14px;
+    letter-spacing: 1px;
+}
+
+.status-version {
+    display: inline-block;
+    margin-bottom: 12px;
+    padding: 4px 10px;
+    border: 1px solid #4d6b4e;
+    border-radius: 999px;
+    color: #b7d9af;
+    font-size: 12px;
+    background: rgba(76, 175, 80, 0.12);
+}
+
+.status-card {
+    border: 1px solid #3f3f3f;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+    background: linear-gradient(180deg, #262626 0%, #1f1f1f 100%);
+}
+
+.status-card.player {
+    border-color: #8c6d3c;
+    box-shadow: inset 0 0 0 1px rgba(218, 180, 96, 0.15);
+}
+
+.status-card.pet {
+    border-color: #3f6f7e;
+    box-shadow: inset 0 0 0 1px rgba(84, 170, 201, 0.15);
+}
+
+.status-card.neutral {
+    border-color: #4a4a4a;
+}
+
+.status-card.compact-card {
+    padding-top: 10px;
+}
+
+.status-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.status-title {
+    color: #f1e2ae;
+    font-size: 15px;
+    font-weight: bold;
+}
+
+.status-subtitle {
+    color: #bbb;
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.status-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.status-metric {
+    border-radius: 10px;
+    padding: 8px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.status-metric .metric-label {
+    opacity: 0.85;
+}
+
+.status-metric .metric-value {
+    font-weight: bold;
+}
+
+.status-metric.hp {
+    background: rgba(168, 52, 52, 0.18);
+    color: #ffb1b1;
+}
+
+.status-metric.mp {
+    background: rgba(54, 103, 180, 0.18);
+    color: #b8d2ff;
+}
+
+.status-metric.exp {
+    background: rgba(72, 143, 74, 0.18);
+    color: #b8ecb8;
+}
+
+.status-metric.stat {
+    background: rgba(130, 101, 36, 0.18);
+    color: #f0d79b;
+}
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.status-pill.level {
+    background: #5b4723;
+    color: #ffd77f;
+}
+
+.status-pill.solo {
+    background: rgba(211, 119, 54, 0.18);
+    color: #ffcb9b;
+}
+
+.status-pill.duo {
+    background: rgba(83, 146, 196, 0.2);
+    color: #b9dfff;
+}
+
+.status-pill.rarity {
+    background: rgba(112, 92, 158, 0.2);
+    color: #d6c7ff;
+}
+
+.status-inline-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.status-chip {
+    display: inline-flex;
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+.status-chip.money {
+    background: rgba(161, 128, 38, 0.2);
+    color: #f1d27c;
+}
+
+.status-chip.chapter {
+    background: rgba(97, 114, 143, 0.24);
+    color: #c8d4ee;
+}
+
+.status-chip.progress {
+    background: rgba(88, 122, 96, 0.24);
+    color: #c7e3cb;
+}
+
+.inventory-group {
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+}
+
+.inventory-title {
+    font-size: 12px;
+    font-weight: bold;
+    margin-bottom: 6px;
+    color: #ddd;
+}
+
+.inventory-line,
+.reserve-line,
+.quest-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    font-size: 12px;
+}
+
+.inventory-empty {
+    color: #888;
+    font-size: 12px;
+}
+
+.combat-level {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(255, 215, 127, 0.14);
+    color: #ffd77f;
+    font-size: 11px;
+}
