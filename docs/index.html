@@ -1,0 +1,86 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Rustling Grass</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- 主菜单界面 -->
+    <div id="main-menu" class="menu-screen">
+        <div class="menu-container">
+            <h1 class="game-title">A Rustling Grass</h1>
+            <h2 class="game-subtitle">微风草丛</h2><p class="game-version">Version 0.9.0</p>
+            <div class="menu-buttons">
+                <button class="menu-button" onclick="showNewGameMenu()">新游戏</button>
+                <button class="menu-button" onclick="showLoadGameMenu()">继续游戏</button>
+                <button class="menu-button" onclick="showAbout()">关于游戏</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 选择存档位界面 -->
+    <div id="save-slot-menu" class="menu-screen" style="display:none;">
+        <div class="menu-container">
+            <h2>选择存档位</h2>
+            <div id="saveSlotList" class="save-slot-list"></div>
+            <button class="menu-button" onclick="showMainMenu()">返回主菜单</button>
+        </div>
+    </div>
+
+    <!-- 加载存档界面 -->
+    <div id="load-game-menu" class="menu-screen" style="display:none;">
+        <div class="menu-container">
+            <h2>加载存档</h2>
+            <div id="loadSlotList" class="save-slot-list"></div>
+            <button class="menu-button" onclick="showMainMenu()">返回主菜单</button>
+        </div>
+    </div>
+
+    <!-- 关于界面 -->
+    <div id="about-menu" class="menu-screen" style="display:none;">
+        <div class="menu-container">
+            <h2>关于游戏</h2>
+            <div class="about-text">
+                <p><strong>A Rustling Grass</strong></p>
+                <p>一款文字冒险RPG游戏</p>
+                <p>选择你的职业，收服你的宠物伙伴</p>
+                <p>在微风草丛中探索与战斗</p>
+                <p>提升等级，变得更强！</p>
+                <p style="margin-top: 20px;">版本: 0.9.0</p>
+            </div>
+            <button class="menu-button" onclick="showMainMenu()">返回</button>
+        </div>
+    </div>
+
+    <!-- 游戏主界面 -->
+    <div id="game-container" style="display:none;">
+        <div id="left-panel">
+            <div id="logSection">
+                <h3>日志</h3>
+                <div id="logArea"></div>
+            </div>
+            <div id="bottom-right">
+                <h3>行动</h3>
+                <div id="buttonsArea"></div>
+            </div>
+        </div>
+
+        <div id="right-panel">
+            <div id="top-right">
+                <h3>队伍状态</h3>
+                <div id="teamInfo"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load scripts in correct order: data -> engine -> combat -->
+    <script src="js/data.js"></script>
+    <script src="js/engine.js"></script>
+    <script src="js/combat.js"></script>
+    <!-- Game initialization is handled in engine.js -->
+</body>
+</html>
+
+

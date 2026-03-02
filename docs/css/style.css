@@ -1,0 +1,371 @@
+﻿:root {
+    --bg-color: #1a1a1a;
+    --text-color: #e0e0e0;
+    --border-color: #444;
+    --accent-color: #4CAF50;
+    --button-bg: #333;
+    --button-hover: #555;
+    --hp-bg: #600;
+    --hp-fill: #f00;
+}
+
+body {
+    font-family: 'Courier New', Courier, monospace;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+#game-container {
+    display: flex;
+    height: 100vh;
+    padding: 20px;
+    gap: 20px;
+    box-sizing: border-box;
+}
+
+#left-panel {
+    flex: 1.7;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    overflow: hidden;
+}
+
+#logSection {
+    flex: 1;
+    border: 1px solid var(--border-color);
+    padding: 20px;
+    background-color: #222;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+#logArea {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+#right-panel {
+    flex: 1;
+    display: flex;
+    min-width: 320px;
+}
+
+#top-right {
+    border: 1px solid var(--border-color);
+    padding: 20px;
+    background-color: #222;
+    overflow-y: auto;
+    flex: 1;
+}
+
+#bottom-right {
+    border: 1px solid var(--border-color);
+    padding: 20px;
+    background-color: #222;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    min-height: 220px;
+    max-height: 34vh;
+}`r`n
+
+.log-entry {
+    margin-bottom: 15px;
+    line-height: 1.5;
+}
+
+.log-sys {
+    color: #888;
+    font-style: italic;
+}
+
+.log-dialogue {
+    color: #aaf;
+}
+
+.log-combat {
+    color: #ffeb3b;
+}
+
+.log-damage {
+    color: #f55;
+}
+
+.log-heal {
+    color: #5f5;
+}
+
+button {
+    background-color: var(--button-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    padding: 10px 15px;
+    cursor: pointer;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14px;
+    transition: all 0.2s;
+    margin-bottom: 5px;
+}
+
+button:hover {
+    background-color: var(--button-hover);
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.stat-item {
+    margin-bottom: 5px;
+}
+
+.hp-bar-container {
+    width: 100%;
+    height: 20px;
+    background-color: var(--hp-bg);
+    border: 1px solid var(--border-color);
+    margin: 5px 0;
+    position: relative;
+}
+
+.hp-bar-fill {
+    height: 100%;
+    background-color: var(--hp-fill);
+    transition: width 0.3s;
+}
+
+.hp-bar-text {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    line-height: 20px;
+    font-size: 12px;
+    color: white;
+    text-shadow: 1px 1px 2px black;
+}
+
+.combat-unit {
+    border: 1px solid #555;
+    padding: 10px;
+    margin-bottom: 10px;
+    background-color: #2a2a2a;
+}
+
+.combat-unit.active {
+    border-color: #ff0;
+    box-shadow: 0 0 10px #ff0;
+}
+
+.skill-button {
+    background-color: #225;
+    margin: 5px;
+}
+
+.skill-button:hover {
+    background-color: #447;
+}
+
+.exp-bar-container {
+    width: 100%;
+    height: 12px;
+    background-color: #333;
+    border: 1px solid var(--border-color);
+    margin: 5px 0;
+    position: relative;
+}
+
+.exp-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4CAF50, #8BC34A);
+    transition: width 0.3s;
+}
+
+/* ========== 菜单界面样式 ========== */
+.menu-screen {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d3436 100%);
+}
+
+.menu-container {
+    text-align: center;
+    max-width: 600px;
+    width: 90%;
+    padding: 40px;
+    background-color: rgba(34, 34, 34, 0.9);
+    border: 2px solid var(--accent-color);
+    border-radius: 10px;
+    box-shadow: 0 0 30px rgba(76, 175, 80, 0.3);
+}
+
+.game-title {
+    font-size: 48px;
+    margin: 0 0 10px 0;
+    color: var(--accent-color);
+    text-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
+    letter-spacing: 2px;
+}
+
+.game-subtitle {
+    font-size: 24px;
+    margin: 0 0 40px 0;
+    color: #888;
+    font-weight: normal;
+}
+
+.menu-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 30px;
+}
+
+.menu-button {
+    padding: 15px 30px;
+    font-size: 18px;
+    background-color: var(--button-bg);
+    color: var(--text-color);
+    border: 2px solid var(--border-color);
+    cursor: pointer;
+    transition: all 0.3s;
+    font-family: 'Courier New', Courier, monospace;
+    border-radius: 5px;
+}
+
+.menu-button:hover {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+}
+
+/* ========== 存档槽样式 ========== */
+.save-slot-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 20px 0;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.save-slot {
+    padding: 15px;
+    background-color: #2a2a2a;
+    border: 2px solid var(--border-color);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+    position: relative;
+}
+
+.save-slot:hover {
+    border-color: var(--accent-color);
+    background-color: #333;
+}
+
+.save-slot.empty {
+    opacity: 0.6;
+    font-style: italic;
+}
+
+.save-slot-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.save-slot-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--accent-color);
+}
+
+.save-slot-time {
+    font-size: 12px;
+    color: #888;
+}
+
+.save-slot-info {
+    font-size: 14px;
+    color: #ccc;
+    line-height: 1.5;
+}
+
+.delete-save-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    padding: 5px 10px;
+    font-size: 12px;
+    background-color: #600;
+    border: 1px solid #800;
+    color: white;
+    cursor: pointer;
+    border-radius: 3px;
+}
+
+.delete-save-btn:hover {
+    background-color: #900;
+}
+
+.about-text {
+    text-align: center;
+    line-height: 2;
+    color: #ccc;
+    margin: 20px 0;
+}
+
+.about-text p {
+    margin: 10px 0;
+}
+
+/* 在游戏中的保存按钮 */
+.save-game-btn {
+    background-color: #225;
+    border-color: #447;
+    margin-top: 10px;
+}
+
+.save-game-btn:hover {
+    background-color: #447;
+}
+.mp-bar-container {
+    width: 100%;
+    height: 16px;
+    background-color: #12314a;
+    border: 1px solid var(--border-color);
+    margin: 4px 0 8px 0;
+    position: relative;
+}
+
+.mp-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4fc3f7, #0277bd);
+    transition: width 0.3s;
+}
+
+
+
+.game-version {
+    margin: 8px 0 0 0;
+    color: #9fb59f;
+    font-size: 14px;
+    letter-spacing: 1px;
+}
+
