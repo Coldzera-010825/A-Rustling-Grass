@@ -1,5 +1,6 @@
-﻿const GAME_VERSION = '0.9.2';
+﻿const GAME_VERSION = '0.9.3';
 const VERSION_HISTORY = [
+    { version: '0.9.3', date: '2026-03-02', summary: '修复日志队列下的按钮卡死问题，并加入返回主菜单与保存提示。' },
     { version: '0.9.2', date: '2026-03-02', summary: '加入日志队列与战斗节奏延迟，降低日志瞬时刷屏问题。' },
     { version: '0.9.1', date: '2026-03-02', summary: '修复等级与 MP 显示、旧存档数值归一化、状态面板重构，并加入更新日志体系。' },
     { version: '0.9.0', date: '2026-03-02', summary: '完成第一章基础闭环、扩展宠物图鉴与属性克制。' }

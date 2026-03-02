@@ -7,6 +7,7 @@ let currentSaveSlot = null;
 let logQueue = [];
 let isLogProcessing = false;
 let pendingButtonsData = null;
+let lastButtonsData = null;
 let logIdleCallbacks = [];
 
 function safeNumber(value, fallback = 0) {
@@ -86,6 +87,7 @@ function resetLogSystem() {
     logQueue = [];
     isLogProcessing = false;
     pendingButtonsData = null;
+    lastButtonsData = null;
     logIdleCallbacks = [];
 }
 
@@ -125,10 +127,21 @@ function showWaitingButtons() {
     buttonsArea.appendChild(button);
 }
 
+function buildActionButtons(buttonsData) {
+    const finalButtons = [...buttonsData];
+    const inGameView = document.getElementById('game-container') && document.getElementById('game-container').style.display !== 'none';
+    const hasReturnButton = finalButtons.some((btn) => btn.action === promptReturnToMainMenu);
+    if (inGameView && !hasReturnButton) {
+        finalButtons.push({ text: '返回主菜单', action: promptReturnToMainMenu, className: 'secondary-button' });
+    }
+    return finalButtons;
+}
+
 function renderButtons(buttonsData) {
     if (!buttonsArea) return;
+    lastButtonsData = buttonsData;
     buttonsArea.innerHTML = '';
-    buttonsData.forEach((btn) => {
+    buildActionButtons(buttonsData).forEach((btn) => {
         const button = document.createElement('button');
         button.innerText = btn.text;
         if (btn.disabled) button.disabled = true;
@@ -150,9 +163,18 @@ function flushPendingButtons() {
     renderButtons(buttonsData);
 }
 
+function restoreLastButtons() {
+    if (!lastButtonsData || !buttonsArea) return;
+    renderButtons(lastButtonsData);
+}
+
 function resolveLogIdle() {
     if (logQueue.length > 0 || isLogProcessing) return;
-    flushPendingButtons();
+    if (pendingButtonsData) {
+        flushPendingButtons();
+    } else {
+        restoreLastButtons();
+    }
     const callbacks = [...logIdleCallbacks];
     logIdleCallbacks = [];
     callbacks.forEach((callback) => callback());
@@ -216,6 +238,17 @@ function setButtons(buttonsData, options = {}) {
 
     pendingButtonsData = buttonsData;
     showWaitingButtons();
+}
+
+function promptReturnToMainMenu() {
+    const shouldSave = currentSaveSlot !== null && confirm(`返回主菜单前是否保存游戏？
+选择“确定”将保存后返回，选择“取消”将直接返回。`);
+    if (shouldSave) {
+        saveCurrentGame({ silent: true });
+    }
+    resetLogSystem();
+    if (logArea) logArea.innerHTML = '';
+    showMainMenu();
 }
 
 function updateUI() {
@@ -1357,7 +1390,7 @@ function normalizePartyMemberRecord(member) {
     return normalizedMember;
 }
 
-function saveCurrentGame() {
+function saveCurrentGame(options = {}) {
     if (currentSaveSlot === null) {
         addLog('错误：未选择存档位。', 'sys');
         return;
@@ -1378,7 +1411,9 @@ function saveCurrentGame() {
     };
 
     localStorage.setItem(`save_slot_${currentSaveSlot}`, JSON.stringify(saveData));
-    addLog('游戏已保存。', 'heal');
+    if (!options.silent) {
+        addLog('游戏已保存。', 'heal');
+    }
 }
 
 function loadGame(slot) {
