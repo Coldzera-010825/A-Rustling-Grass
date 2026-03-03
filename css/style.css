@@ -1057,6 +1057,56 @@ button:disabled {
     margin-bottom: 6px;
 }
 
+.dex-wheel-wrap {
+    position: relative;
+    width: min(440px, 100%);
+    height: 440px;
+    margin: 0 auto 18px;
+}
+
+.dex-wheel-ring {
+    position: absolute;
+    inset: 54px;
+    border: 2px dashed rgba(255, 255, 255, 0.16);
+    border-radius: 50%;
+}
+
+.dex-wheel-center {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 110px;
+    height: 110px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    color: #dbe8d1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 13px;
+    font-weight: bold;
+    line-height: 1.4;
+}
+
+.dex-wheel-node {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.wheel-pos-1 { transform: translate(-50%, -50%) translateY(-176px); }
+.wheel-pos-2 { transform: translate(-50%, -50%) translate(124px, -124px); }
+.wheel-pos-3 { transform: translate(-50%, -50%) translateX(176px); }
+.wheel-pos-4 { transform: translate(-50%, -50%) translate(124px, 124px); }
+.wheel-pos-5 { transform: translate(-50%, -50%) translateY(176px); }
+.wheel-pos-6 { transform: translate(-50%, -50%) translate(-124px, 124px); }
+.wheel-pos-7 { transform: translate(-50%, -50%) translateX(-176px); }
+.wheel-pos-8 { transform: translate(-50%, -50%) translate(-124px, -124px); }
+
 .skill-owner-block {
     padding: 10px 0;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -1299,6 +1349,16 @@ body[data-ui-mode='ops'] .dex-type-chart-line {
     background: rgba(86, 117, 145, 0.04);
 }
 
+body[data-ui-mode='ops'] .dex-wheel-ring {
+    border-color: rgba(95, 115, 133, 0.28);
+}
+
+body[data-ui-mode='ops'] .dex-wheel-center {
+    border-color: #d7e0e7;
+    background: rgba(86, 117, 145, 0.04);
+    color: #3d607d;
+}
+
 body[data-ui-mode='ops'] .combat-unit.active {
     border-color: #5f8fb7;
     box-shadow: 0 0 0 2px rgba(95, 143, 183, 0.18);
@@ -1444,4 +1504,27 @@ body[data-ui-mode='ops'] .about-faction-head {
         padding-left: 14px;
         padding-right: 14px;
     }
+
+    .dex-wheel-wrap {
+        height: 320px;
+    }
+
+    .dex-wheel-ring {
+        inset: 42px;
+    }
+
+    .dex-wheel-center {
+        width: 92px;
+        height: 92px;
+        font-size: 12px;
+    }
+
+    .wheel-pos-1 { transform: translate(-50%, -50%) translateY(-124px); }
+    .wheel-pos-2 { transform: translate(-50%, -50%) translate(88px, -88px); }
+    .wheel-pos-3 { transform: translate(-50%, -50%) translateX(124px); }
+    .wheel-pos-4 { transform: translate(-50%, -50%) translate(88px, 88px); }
+    .wheel-pos-5 { transform: translate(-50%, -50%) translateY(124px); }
+    .wheel-pos-6 { transform: translate(-50%, -50%) translate(-88px, 88px); }
+    .wheel-pos-7 { transform: translate(-50%, -50%) translateX(-124px); }
+    .wheel-pos-8 { transform: translate(-50%, -50%) translate(-88px, -88px); }
 }

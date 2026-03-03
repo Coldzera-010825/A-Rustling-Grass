@@ -1295,7 +1295,14 @@ function openMonsterDex() {
         </div>
     `).join('');
 
-    const typeChartHtml = Object.keys(TYPE_CHART).map((typeName) => {
+    const typeWheelOrder = ['火', '草', '水', '电', '飞行', '虫', '机械', '普通'];
+    const wheelHtml = typeWheelOrder.map((typeName, index) => `
+        <div class="dex-wheel-node wheel-pos-${index + 1}">
+            ${renderTypeBadges(typeName)}
+        </div>
+    `).join('');
+
+    const typeChartHtml = typeWheelOrder.map((typeName) => {
         const chart = TYPE_CHART[typeName];
         const strongText = chart.strongAgainst.length > 0 ? chart.strongAgainst.join('、') : '无';
         const weakText = chart.weakAgainst.length > 0 ? chart.weakAgainst.join('、') : '无';
@@ -1324,6 +1331,11 @@ function openMonsterDex() {
             </div>
             <div class="dex-section">
                 <div class="dex-section-title">属性克制图</div>
+                <div class="dex-wheel-wrap">
+                    <div class="dex-wheel-ring"></div>
+                    <div class="dex-wheel-center">属性关系</div>
+                    ${wheelHtml}
+                </div>
                 ${typeChartHtml}
             </div>
             <div class="dex-section">
