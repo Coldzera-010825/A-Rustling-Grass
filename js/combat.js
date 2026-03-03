@@ -16,7 +16,7 @@ function createEnemyUnit(encounterId, options = {}) {
                 atk: bossData.atk,
                 spd: bossData.spd,
                 skills: [...bossData.skills],
-                level: 1,
+                level: bossData.level || 1,
                 isEnemy: true,
                 team: 'enemy'
             },
@@ -32,7 +32,7 @@ function createEnemyUnit(encounterId, options = {}) {
                 atk: companionData.atk,
                 spd: companionData.spd,
                 skills: [...companionData.skills],
-                level: 1,
+                level: companionData.level || 1,
                 isEnemy: true,
                 isPet: true,
                 owner: encounterId,
@@ -60,7 +60,7 @@ function createEnemyUnit(encounterId, options = {}) {
         atk: enemyData.atk,
         spd: enemyData.spd,
         skills: [...enemyData.skills],
-        level: 1,
+        level: enemyData.level || 1,
         isEnemy: true,
         isPet: !!PETS[encounterId],
         captureable: enemyData.captureable !== false && !!PETS[encounterId],
@@ -98,10 +98,6 @@ function logTypeEffect(attackType, targetType, multiplier) {
 
 function resolveAttackType(attacker, skill = null) {
     if (skill && skill.type) return skill.type;
-    if (attacker && attacker.isPet) {
-        const parts = parseTypeParts(attacker.type);
-        return parts[0] || attacker.type;
-    }
     return '普通';
 }
 

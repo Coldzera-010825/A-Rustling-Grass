@@ -943,10 +943,68 @@ button:disabled {
 .dex-stats,
 .dex-body,
 .dex-rarity-line,
-.dex-skill-line {
+.dex-skill-line,
+.dex-type-chart-meta {
     font-size: 12px;
     line-height: 1.6;
     color: #aeb8b1;
+}
+
+.dex-type-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.type-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.type-fire {
+    background: rgba(214, 95, 68, 0.24);
+    color: #ffd7cf;
+}
+
+.type-water {
+    background: rgba(74, 132, 214, 0.24);
+    color: #dce9ff;
+}
+
+.type-grass {
+    background: rgba(82, 167, 103, 0.24);
+    color: #dcffe0;
+}
+
+.type-normal {
+    background: rgba(146, 146, 146, 0.22);
+    color: #f0f0f0;
+}
+
+.type-flying {
+    background: rgba(118, 151, 225, 0.22);
+    color: #e4ecff;
+}
+
+.type-bug {
+    background: rgba(122, 171, 72, 0.24);
+    color: #ebffd3;
+}
+
+.type-electric {
+    background: rgba(216, 186, 63, 0.24);
+    color: #fff3bf;
+}
+
+.type-mechanical {
+    background: rgba(95, 124, 138, 0.24);
+    color: #d9e6ec;
 }
 
 .dex-meta-line,
@@ -985,6 +1043,18 @@ button:disabled {
 
 .dex-skill-desc {
     color: #aeb8b1;
+}
+
+.dex-type-chart-line {
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.dex-type-chart-head {
+    margin-bottom: 6px;
 }
 
 .skill-owner-block {
@@ -1215,12 +1285,18 @@ body[data-ui-mode='ops'] .dex-meta-line,
 body[data-ui-mode='ops'] .dex-stats,
 body[data-ui-mode='ops'] .dex-body,
 body[data-ui-mode='ops'] .dex-rarity-line,
-body[data-ui-mode='ops'] .dex-skill-desc {
+body[data-ui-mode='ops'] .dex-skill-desc,
+body[data-ui-mode='ops'] .dex-type-chart-meta {
     color: #627789;
 }
 
 body[data-ui-mode='ops'] .dex-skill-level {
     color: #8c6b1f;
+}
+
+body[data-ui-mode='ops'] .dex-type-chart-line {
+    border-color: #d7e0e7;
+    background: rgba(86, 117, 145, 0.04);
 }
 
 body[data-ui-mode='ops'] .combat-unit.active {

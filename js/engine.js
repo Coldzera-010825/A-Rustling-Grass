@@ -150,8 +150,25 @@ function syncUnitSkills(unit) {
 
 function getBasicAttackDescription(unit) {
     const roleLabel = unit?.isPet ? '宠物普攻' : '角色普攻';
-    const typeLabel = unit?.isPet ? `默认按 ${unit.type || '普通'} 属性判定。` : '不消耗 MP。';
+    const typeLabel = '基础普攻统一按普通属性判定，不消耗 MP。';
     return `${roleLabel}，伤害约为 ATK 的 75%。${typeLabel}`;
+}
+
+function getTypeBadgeClass(typeName) {
+    return {
+        '火': 'type-fire',
+        '水': 'type-water',
+        '草': 'type-grass',
+        '普通': 'type-normal',
+        '飞行': 'type-flying',
+        '虫': 'type-bug',
+        '电': 'type-electric',
+        '机械': 'type-mechanical'
+    }[typeName] || 'type-normal';
+}
+
+function renderTypeBadges(typeValue = '') {
+    return parseTypeParts(typeValue).map((typeName) => `<span class="type-badge ${getTypeBadgeClass(typeName)}">${typeName}</span>`).join('');
 }
 
 function getSkillDescription(skillName) {
@@ -1224,6 +1241,7 @@ function openMonsterDex() {
                     <strong>${entry.key}</strong>
                     <span class="status-pill rarity rarity-${entry.rarity}">${entry.rarity}</span>
                 </div>
+                <div class="dex-type-row">${renderTypeBadges(entry.type)}</div>
                 <div class="dex-meta-line">属性：${entry.type}｜出没地：${entry.habitat}｜${captureText}</div>
                 <div class="dex-stats">HP ${entry.stats.hp} / MP ${entry.stats.mp} / ATK ${entry.stats.atk} / SPD ${entry.stats.spd}</div>
                 <div class="dex-body">${entry.note}</div>
@@ -1277,6 +1295,19 @@ function openMonsterDex() {
         </div>
     `).join('');
 
+    const typeChartHtml = Object.keys(TYPE_CHART).map((typeName) => {
+        const chart = TYPE_CHART[typeName];
+        const strongText = chart.strongAgainst.length > 0 ? chart.strongAgainst.join('、') : '无';
+        const weakText = chart.weakAgainst.length > 0 ? chart.weakAgainst.join('、') : '无';
+        return `
+            <div class="dex-type-chart-line">
+                <div class="dex-type-chart-head">${renderTypeBadges(typeName)}</div>
+                <div class="dex-type-chart-meta">克制：${strongText}</div>
+                <div class="dex-type-chart-meta">受阻：${weakText}</div>
+            </div>
+        `;
+    }).join('');
+
     dexModalContent.innerHTML = `
         <div class="status-version">版本 ${getCurrentGameVersion()}</div>
         <section class="status-card neutral dex-card">
@@ -1290,6 +1321,10 @@ function openMonsterDex() {
             <div class="dex-section">
                 <div class="dex-section-title">稀有度说明</div>
                 ${rarityHtml}
+            </div>
+            <div class="dex-section">
+                <div class="dex-section-title">属性克制图</div>
+                ${typeChartHtml}
             </div>
             <div class="dex-section">
                 <div class="dex-section-title">宠物图鉴</div>
