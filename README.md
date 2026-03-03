@@ -1,39 +1,59 @@
-# A Rustling Grass / 微风草丛
+﻿# A Rustling Grass / 微风草丛
 
-当前版本 / Current Version: `0.11.0`
+当前版本 / Current Version: `0.13.0`
 
-《微风草丛》是一款持续迭代中的文字冒险回合制 RPG。玩家将从微风村出发，选择职业与初始宠物，在草丛与森林中探索、战斗、捕获宠物、推进第一章剧情。
+《微风草丛》是一款持续迭代中的文字驱动回合制 RPG。玩家从微风村出发，选择职业与初始宠物，在草丛、森林与实验室线索之间推进第一章剧情，进行探索、战斗、捕获、调查与解谜。
 
-A Rustling Grass is an actively evolving text-driven turn-based RPG. You begin in Breeze Village, choose your class and starter companion, and progress through Chapter One with exploration, battles, creature capture, and village-side story events.
+A Rustling Grass is an actively evolving text-driven turn-based RPG. You begin in Breeze Village, choose a class and starter companion, and progress through Chapter One with exploration, battles, creature capture, investigation, and light puzzle-solving.
 
 ## 运行方式 / How to Run
+
 直接打开 `index.html` 即可开始游戏。
 
 Open `index.html` in a browser to start the game.
 
 ## 当前开发状态 / Current Development Status
-本项目仍在持续更新中，当前版本并非最终正式版。游玩过程中可能出现部分 bug、平衡性不足或机制仍在调整的情况。
 
-This project is still under active development. You may encounter bugs, balance issues, or mechanics that are still being tuned.
+项目仍在持续更新中，当前版本不是最终正式版。游玩过程中仍可能遇到平衡调整、流程细化或未完全展开的后续章节内容。
 
-## 0.11.0 World Rebuild
+This project is still under active development. You may still encounter balance tuning, flow revisions, or later-chapter content that is only partially implemented.
 
-Current canon version is `0.11.0`.
+## 当前第一章结构 / Current Chapter One Structure
 
-The macro setting has been rebuilt around **Windmark Continent** and **Wind Mark**:
+- 微风村开局，选择职业与初始宠物。
+- 回声草丛初战后，第三次探索会触发林晓试炼战。
+- 击败林晓后获得图鉴大全，并进入村庄调查阶段。
+- 村庄内需要完成调查解谜，包括李四的异常记录判断、集市长棚的异常采购推理，以及桥边异响支线旁证。
+- 呢喃森林解锁后，会先遭遇幻梦乐园代理人与机械宠物“棱镜机偶”。
+- 获得实验门卡后，还需通过实验室门禁谜题。
+- 实验室内部会进入灾变现场，并遭遇第一章内部 Boss“失衡实验体”。
 
-- Wind Mark is not wind itself, but the trace left by the world's breathing.
-- Breeze Village is a surviving coexistence-era village.
-- The outside world has already entered an age of exploitation and imbalance.
-- Reverse-flow Wind Marks, mutated creatures, and hidden experiments are now the core mystery behind Chapter One.
+## 近期关键更新 / Recent Major Updates
 
-Three major factions now define the larger plot:
+### 0.13.0 Chapter One Rebuild
 
-1. **Dreamland Consortium** tries to design and control Wind Mark.
-2. **Gear Faction** tries to replace Wind Mark with machinery.
-3. **Poacher Nebula** comes from a windless land and has detected an abnormal core near Breeze Village.
+- Chapter One pacing was rebuilt around village investigation, gated forest access, a proxy gatekeeper battle, and a lab door puzzle.
+- The lab interior now presents a collapsed disaster scene instead of a clean facility.
+- The final encounter of Chapter One is now the inner boss `失衡实验体`, replacing the old single-stage robot climax.
 
-Playable scope remains limited to **Chapter One**. Later chapters exist only as foreshadowing in the current build.
+### 0.12.x Encyclopedia Update
+
+- The old skill compendium was merged into the central encyclopedia modal.
+- Encyclopedia entries now unlock progressively based on encounters, captures, dialogue, and story battles.
+- Pet entries, character entries, rarity descriptions, and skill unlock levels are now unified in one place.
+
+### 0.11.0 World Rebuild
+
+- The macro setting was rebuilt around **Windmark Continent** and **Wind Mark**.
+- Breeze Village is now explicitly framed as a surviving coexistence-era village.
+- Dreamland Consortium, Gear Faction, and Poacher Nebula now anchor the long-term plot.
+
+## 可玩范围 / Playable Scope
+
+当前可玩内容仍限制在第一章。第二章及之后的势力冲突目前以前置伏笔形式存在。
+
+Playable content is still limited to Chapter One. Later chapters currently exist as foreshadowing only.
 
 ## 更新记录 / Changelog
+
 详细更新记录见 [CHANGELOG.md](CHANGELOG.md)。
