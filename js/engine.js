@@ -1240,9 +1240,9 @@ function openMonsterDex() {
                     <span class="dex-code">${entry.id}</span>
                     <strong>${entry.key}</strong>
                     <span class="status-pill rarity rarity-${entry.rarity}">${entry.rarity}</span>
+                    ${renderTypeBadges(entry.type)}
                 </div>
-                <div class="dex-type-row">${renderTypeBadges(entry.type)}</div>
-                <div class="dex-meta-line">属性：${entry.type}｜出没地：${entry.habitat}｜${captureText}</div>
+                <div class="dex-meta-line">出没地：${entry.habitat}｜${captureText}</div>
                 <div class="dex-stats">HP ${entry.stats.hp} / MP ${entry.stats.mp} / ATK ${entry.stats.atk} / SPD ${entry.stats.spd}</div>
                 <div class="dex-body">${entry.note}</div>
                 <div class="dex-subtitle">技能记录</div>
@@ -1295,22 +1295,29 @@ function openMonsterDex() {
         </div>
     `).join('');
 
-    const typeWheelOrder = ['火', '草', '水', '电', '飞行', '虫', '机械', '普通'];
-    const wheelHtml = typeWheelOrder.map((typeName, index) => `
-        <div class="dex-wheel-node wheel-pos-${index + 1}">
-            ${renderTypeBadges(typeName)}
-        </div>
-    `).join('');
-
-    const typeChartHtml = typeWheelOrder.map((typeName) => {
+    const typeChartOrder = ['火', '水', '草', '电', '飞行', '虫', '机械', '普通'];
+    const typeChartHtml = typeChartOrder.map((typeName) => {
         const chart = TYPE_CHART[typeName];
-        const strongText = chart.strongAgainst.length > 0 ? chart.strongAgainst.join('、') : '无';
-        const weakText = chart.weakAgainst.length > 0 ? chart.weakAgainst.join('、') : '无';
+        const strongHtml = chart.strongAgainst.length > 0
+            ? chart.strongAgainst.map((targetName) => renderTypeBadges(targetName)).join('')
+            : '<span class="dex-arrow-empty">无明显克制</span>';
+        const weakHtml = chart.weakAgainst.length > 0
+            ? chart.weakAgainst.map((targetName) => renderTypeBadges(targetName)).join('')
+            : '<span class="dex-arrow-empty">无明显受阻</span>';
         return `
-            <div class="dex-type-chart-line">
-                <div class="dex-type-chart-head">${renderTypeBadges(typeName)}</div>
-                <div class="dex-type-chart-meta">克制：${strongText}</div>
-                <div class="dex-type-chart-meta">受阻：${weakText}</div>
+            <div class="dex-arrow-card">
+                <div class="dex-arrow-row">
+                    <div class="dex-arrow-source">${renderTypeBadges(typeName)}</div>
+                    <div class="dex-arrow-symbol">→</div>
+                    <div class="dex-arrow-targets">${strongHtml}</div>
+                    <div class="dex-arrow-label">克制</div>
+                </div>
+                <div class="dex-arrow-row secondary">
+                    <div class="dex-arrow-source">${renderTypeBadges(typeName)}</div>
+                    <div class="dex-arrow-symbol">→</div>
+                    <div class="dex-arrow-targets">${weakHtml}</div>
+                    <div class="dex-arrow-label">受阻</div>
+                </div>
             </div>
         `;
     }).join('');
@@ -1331,11 +1338,6 @@ function openMonsterDex() {
             </div>
             <div class="dex-section">
                 <div class="dex-section-title">属性克制图</div>
-                <div class="dex-wheel-wrap">
-                    <div class="dex-wheel-ring"></div>
-                    <div class="dex-wheel-center">属性关系</div>
-                    ${wheelHtml}
-                </div>
                 ${typeChartHtml}
             </div>
             <div class="dex-section">
