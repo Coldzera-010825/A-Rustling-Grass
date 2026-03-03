@@ -85,7 +85,7 @@ function createInventoryTemplate() {
 function getItemBucket(itemName) {
     if (BALL_DATA[itemName]) return 'human';
     if (['树果', '灵芽露'].includes(itemName)) return 'pet';
-    if (['带齿铁片', '溪桥护符', '孤行者徽记', '星光碎片', '怪兽图鉴'].includes(itemName)) return 'special';
+    if (['带齿铁片', '溪桥护符', '孤行者徽记', '星光碎片', '怪兽图鉴', '实验门卡'].includes(itemName)) return 'special';
     return 'human';
 }
 
@@ -234,8 +234,11 @@ function syncEncyclopediaDiscoveries() {
     if (gameState.progress?.flags?.laboratoryFound) {
         markCharacterSeen('dreamland_agent');
     }
+    if (gameState.progress?.flags?.agentDefeated) {
+        markPetSeen('棱镜机偶');
+    }
     if (gameState.progress?.flags?.chapter1Completed) {
-        markCharacterSeen('lab_robot');
+        markCharacterSeen('inner_aberration');
     }
 }
 
@@ -268,6 +271,178 @@ function getRestCost() {
     const restsTaken = safeNumber(gameState.progress?.counters?.restsTaken, 0);
     if (restsTaken < 3) return 0;
     return 8 + (restsTaken - 3) * 4;
+}
+
+function beginVillageInvestigationPhase() {
+    gameState.progress.storyStep = STORY_STEPS.VILLAGE_INVESTIGATION;
+    if (!gameState.progress.flags.investigationBriefed) {
+        gameState.progress.flags.investigationBriefed = true;
+        addLog(NARRATIVE.story.investigationIntro, 'dialogue');
+        addLog(NARRATIVE.story.investigationBrief, 'sys');
+    }
+}
+
+function hasRequiredInvestigationClues() {
+    return !!(gameState.progress.flags.lisiObservationSolved && gameState.progress.flags.marketSupplySolved);
+}
+
+function checkVillageInvestigationProgress() {
+    if (!gameState.progress.flags.linxiaoChoiceResolved || gameState.progress.mapsUnlocked.forest) return;
+    if (!hasRequiredInvestigationClues()) return;
+    unlockForest();
+}
+
+function showInvestigationStatus() {
+    const remaining = [];
+    if (!gameState.progress.flags.lisiObservationSolved) remaining.push('去磨坊前和李四分析异常记录');
+    if (!gameState.progress.flags.marketSupplySolved) remaining.push('去集市长棚追查异常采购');
+    if (!gameState.progress.flags.bridgeClueConfirmed) remaining.push('可选：继续整理桥边异响的旁证');
+    addLog('=== 调查线索 ===', 'sys');
+    addLog(remaining.join('；'), 'sys');
+    setButtons(getHubButtons());
+}
+
+function runLisiObservationPuzzle() {
+    addLog('<strong>李四</strong>摊开记录本：“我连续几天记了草丛里的动静，但越看越不像自然迁徙。你帮我判断一下，哪种情况最像是同一股外力在驱赶它们？”', 'dialogue');
+    setButtons([
+        {
+            text: '草叶被踩弯了一整片',
+            action: () => resolveLisiObservationPuzzle(false),
+            helpText: '这更像单纯有东西经过。'
+        },
+        {
+            text: '不同属性的野宠同时朝同一方向逃窜',
+            action: () => resolveLisiObservationPuzzle(true),
+            helpText: '这更像同一股异常在挤压它们的活动范围。'
+        },
+        {
+            text: '一只宠物停在原地发呆',
+            action: () => resolveLisiObservationPuzzle(false),
+            helpText: '单个个体异常，不足以解释整片区域的同步紊乱。'
+        }
+    ]);
+}
+
+function resolveLisiObservationPuzzle(isCorrect) {
+    if (!isCorrect) {
+        addLog('<strong>李四</strong>摇了摇头：“那更像普通痕迹。真正怪的地方在于，本来不会一起行动的种类，最近都在躲同一个方向。”', 'dialogue');
+        runAfterLogs(() => runLisiObservationPuzzle(), 120);
+        return;
+    }
+    gameState.progress.flags.lisiObservationSolved = true;
+    addLog('<strong>李四</strong>眼睛一下亮了：“对，就是这个。不同属性、不同习性的野宠同时朝同一边退，这不是自然受惊，是有人在那一头持续制造扰动。”', 'dialogue');
+    addLog('你整理出了第一条主线线索：草丛异常不是偶发骚动，而是来自森林深处的持续压迫。', 'heal');
+    checkVillageInvestigationProgress();
+    setButtons([
+        { text: '继续留在磨坊前', action: () => visitVillageArea('mill') },
+        { text: '回村庄主界面', action: enterHub }
+    ]);
+}
+
+function runMarketSupplyPuzzle() {
+    addLog('<strong>阿禾</strong>和<strong>曲婶</strong>把最近几笔古怪交易都报给了你：绝缘布、冷却药剂、机油、固定铆钉，还有专门压制高能宠物用的扣具。两人都觉得，那不像普通旅人会买的东西。', 'dialogue');
+    addLog('你需要判断：这些采购组合最像什么人的补给清单？', 'sys');
+    setButtons([
+        {
+            text: '路过的旅人',
+            action: () => resolveMarketSupplyPuzzle(false),
+            helpText: '旅人不会特意成批准备维护和压制设备。'
+        },
+        {
+            text: '设施维护与实验队',
+            action: () => resolveMarketSupplyPuzzle(true),
+            helpText: '这些东西更像在维持某种电力、门禁或收束装置。'
+        },
+        {
+            text: '普通猎户',
+            action: () => resolveMarketSupplyPuzzle(false),
+            helpText: '猎户会买绳网和干粮，不会这样成套购买导电与冷却物资。'
+        }
+    ]);
+}
+
+function resolveMarketSupplyPuzzle(isCorrect) {
+    if (!isCorrect) {
+        addLog('<strong>阿禾</strong>敲了敲算盘：“不像。真是旅人或猎户，买不了这么齐的维护物资。”<strong>曲婶</strong>也皱眉补了一句：“尤其是那批压制扣具，像是专门给不好控制的家伙准备的。”', 'dialogue');
+        runAfterLogs(() => runMarketSupplyPuzzle(), 120);
+        return;
+    }
+    gameState.progress.flags.marketSupplySolved = true;
+    addLog('<strong>阿禾</strong>把账册一合：“对，我也是这么想的。”<strong>曲婶</strong>轻轻点头：“有人在森林里养着或关着什么，而且不想让它失控。”', 'dialogue');
+    addLog('你整理出了第二条主线线索：森林里的异常背后，很可能有一支仍在运转的实验或维护队伍。', 'heal');
+    checkVillageInvestigationProgress();
+    setButtons([
+        { text: '继续留在集市长棚', action: () => visitVillageArea('market') },
+        { text: '回村庄主界面', action: enterHub }
+    ]);
+}
+
+function startProxyBattle() {
+    addLog(NARRATIVE.story.agentBossStart, 'combat');
+    startCombat('幻梦乐园代理人', { area: 'forest', encounterType: 'boss', isBoss: true, storyEvent: 'proxyBoss' });
+}
+
+function startLaboratoryDoorPuzzle() {
+    if (gameState.progress.flags.labDoorUnlocked) {
+        enterInnerLaboratory();
+        return;
+    }
+    addLog(NARRATIVE.story.doorPuzzleIntro, 'sys');
+    addLog('第一道校验：<strong>“看不见，吹不散；会走，却不是风。”</strong>', 'sys');
+    setButtons([
+        { text: '回答：风纹', action: () => resolveDoorRiddleOne(true) },
+        { text: '回答：雾', action: () => resolveDoorRiddleOne(false) },
+        { text: '回答：回声', action: () => resolveDoorRiddleOne(false) }
+    ]);
+}
+
+function resolveDoorRiddleOne(isCorrect) {
+    if (!isCorrect) {
+        addLog('门禁面板发出一声低沉的拒绝音。你想起村里老人说过，那并不是风，而是世界呼吸留下的痕迹。', 'sys');
+        runAfterLogs(() => startLaboratoryDoorPuzzle(), 120);
+        return;
+    }
+    addLog('第一道校验通过。面板继续亮起第二行：<strong>“躁动、沉静、生长，应按何种元素顺序排列？”</strong>', 'sys');
+    setButtons([
+        { text: '火 / 水 / 草', action: () => resolveDoorRiddleTwo(true) },
+        { text: '草 / 火 / 水', action: () => resolveDoorRiddleTwo(false) },
+        { text: '电 / 水 / 草', action: () => resolveDoorRiddleTwo(false) }
+    ]);
+}
+
+function resolveDoorRiddleTwo(isCorrect) {
+    if (!isCorrect) {
+        addLog('面板上的元素序列重新归零。你回想起村里关于风纹的说法：火是躁动，水是沉静，草是生长。', 'sys');
+        runAfterLogs(() => startLaboratoryDoorPuzzle(), 120);
+        return;
+    }
+    const bridgeBonus = gameState.progress.flags.bridgeClueConfirmed
+        ? '你还顺手把桥边那枚带齿铁片按进了最后的纹槽，大小和齿距恰好吻合。'
+        : '你用门卡裂开的齿纹在槽位上比了比，终于勉强对上最后的机械校验。';
+    addLog(bridgeBonus, 'sys');
+    gameState.progress.flags.labDoorUnlocked = true;
+    gameState.progress.storyStep = STORY_STEPS.LAB_DOOR_UNLOCKED;
+    addLog(NARRATIVE.story.doorPuzzleSolved, 'heal');
+    setButtons([
+        { text: '进入实验室深处', action: enterInnerLaboratory },
+        { text: '先撤回村庄', action: enterHub }
+    ]);
+}
+
+function enterInnerLaboratory() {
+    gameState.progress.flags.innerLabSeen = true;
+    addLog(NARRATIVE.story.innerLabDiscovery, 'sys');
+    addLog(NARRATIVE.story.innerBossIntro, 'dialogue');
+    setButtons([
+        { text: '迎战失衡实验体', action: startInnerBossBattle },
+        { text: '暂时撤出实验室', action: enterHub }
+    ]);
+}
+
+function startInnerBossBattle() {
+    addLog(NARRATIVE.story.innerBossStart, 'combat');
+    markCharacterSeen('inner_aberration');
+    startCombat('失衡实验体', { area: 'forest', encounterType: 'enemy', storyEvent: 'innerBoss' });
 }
 
 function getBridgeMysteryActionText() {
@@ -716,6 +891,30 @@ function ensureVillageState() {
     if (gameState.progress.flags.bridgeCharmGranted === undefined) {
         gameState.progress.flags.bridgeCharmGranted = false;
     }
+    if (gameState.progress.flags.lisiObservationSolved === undefined) {
+        gameState.progress.flags.lisiObservationSolved = false;
+    }
+    if (gameState.progress.flags.marketSupplySolved === undefined) {
+        gameState.progress.flags.marketSupplySolved = false;
+    }
+    if (gameState.progress.flags.bridgeClueConfirmed === undefined) {
+        gameState.progress.flags.bridgeClueConfirmed = false;
+    }
+    if (gameState.progress.flags.bridgeCharmGranted) {
+        gameState.progress.flags.bridgeClueConfirmed = true;
+    }
+    if (gameState.progress.flags.investigationBriefed === undefined) {
+        gameState.progress.flags.investigationBriefed = false;
+    }
+    if (gameState.progress.flags.agentDefeated === undefined) {
+        gameState.progress.flags.agentDefeated = false;
+    }
+    if (gameState.progress.flags.labDoorUnlocked === undefined) {
+        gameState.progress.flags.labDoorUnlocked = false;
+    }
+    if (gameState.progress.flags.innerLabSeen === undefined) {
+        gameState.progress.flags.innerLabSeen = false;
+    }
 }
 
 function enterHub() {
@@ -746,6 +945,9 @@ function getHubButtons() {
 
     if (flags.linxiaoDefeated && !flags.linxiaoChoiceResolved) {
         buttons.unshift({ text: '回应林晓', action: offerLinxiaoChoice });
+    }
+    if (flags.linxiaoChoiceResolved && !gameState.progress.mapsUnlocked.forest) {
+        buttons.unshift({ text: '整理调查线索', action: showInvestigationStatus });
     }
 
     buttons.push({
@@ -856,12 +1058,18 @@ function visitVillageArea(areaId) {
     if (areaId === 'mill') {
         buttons.push({ text: '和李四聊聊', action: () => talkVillageNpc('lisi') });
         buttons.push({ text: '询问收容计划', action: () => interactWithQuestNpc('lisi_capture') });
+        if (gameState.progress.flags.linxiaoChoiceResolved && !gameState.progress.flags.lisiObservationSolved) {
+            buttons.push({ text: '分析异常记录', action: runLisiObservationPuzzle });
+        }
     }
     if (areaId === 'market') {
         buttons.push({ text: '和阿禾闲聊', action: () => talkVillageNpc('ahe') });
         buttons.push({ text: '和曲婶闲聊', action: () => talkVillageNpc('qushen') });
         buttons.push({ text: '进入杂货铺', action: openGeneralStore });
         buttons.push({ text: '进入宠物市集', action: openPetMarket });
+        if (gameState.progress.flags.linxiaoChoiceResolved && !gameState.progress.flags.marketSupplySolved) {
+            buttons.push({ text: '追查异常采购', action: runMarketSupplyPuzzle });
+        }
     }
     if (areaId === 'bridge') {
         buttons.push({ text: '和摆渡伯说话', action: () => talkVillageNpc('ferryman_bo') });
@@ -892,6 +1100,7 @@ function talkVillageNpc(npcId) {
 
     if (npcId === 'chief' && bridgeStage === 4) {
         addLog('<strong>村长</strong>听完你的比对结果后神色沉了下来：“看来那些人已经不只是在森林里活动了。这事你记一功，村子会记得。”', 'dialogue');
+        gameState.progress.flags.bridgeClueConfirmed = true;
         if (!gameState.progress.flags.bridgeCharmGranted) {
             gameState.progress.flags.bridgeCharmGranted = true;
             gameState.money += 55;
@@ -1269,7 +1478,7 @@ function acceptLinxiaoPartnership() {
     gameState.progress.flags.linxiaoDeclined = false;
     addLog(NARRATIVE.story.duoChoice, 'dialogue');
     addLog(NARRATIVE.story.duoPenalty, 'sys');
-    unlockForest();
+    beginVillageInvestigationPhase();
     updateUI();
     runAfterLogs(() => enterHub(), 140);
 }
@@ -1287,7 +1496,7 @@ function declineLinxiaoPartnership() {
         gameState.progress.flags.soloRewardGranted = true;
         addLog(NARRATIVE.story.soloReward, 'sys');
     }
-    unlockForest();
+    beginVillageInvestigationPhase();
     updateUI();
     runAfterLogs(() => enterHub(), 140);
 }
@@ -1318,13 +1527,12 @@ function exploreForest() {
         return;
     }
 
-    if (!gameState.progress.flags.laboratoryFound) {
+    if (!gameState.progress.flags.laboratoryFound || !gameState.progress.flags.agentDefeated || !gameState.progress.flags.labDoorUnlocked || !gameState.progress.flags.innerLabSeen) {
         triggerLaboratoryEvent();
         return;
     }
-
     if (!gameState.progress.flags.chapter1Completed) {
-        startRobotBattle();
+        enterInnerLaboratory();
         return;
     }
 
@@ -1356,18 +1564,28 @@ function exploreForest() {
 }
 
 function triggerLaboratoryEvent() {
-    gameState.progress.flags.laboratoryFound = true;
-    markCharacterSeen('dreamland_agent');
-    addLog(NARRATIVE.story.labDiscovery, 'sys');
-    addLog(NARRATIVE.story.dreamlandAgent, 'dialogue');
-    setButtons([
-        { text: '深入实验室', action: startRobotBattle },
-        { text: '先撤回村庄', action: enterHub }
-    ]);
+    if (!gameState.progress.flags.laboratoryFound) {
+        gameState.progress.flags.laboratoryFound = true;
+        markCharacterSeen('dreamland_agent');
+        addLog(NARRATIVE.story.labDiscovery, 'sys');
+    }
+    if (!gameState.progress.flags.agentDefeated) {
+        addLog(NARRATIVE.story.dreamlandAgent, 'dialogue');
+        setButtons([
+            { text: '挑战代理人', action: startProxyBattle },
+            { text: '先撤回村庄', action: enterHub }
+        ]);
+        return;
+    }
+    if (!gameState.progress.flags.labDoorUnlocked) {
+        startLaboratoryDoorPuzzle();
+        return;
+    }
+    enterInnerLaboratory();
 }
 
 function startRobotBattle() {
-    startCombat('实验机器人', { area: 'forest', encounterType: 'enemy', storyEvent: 'robotBattle' });
+    startInnerBossBattle();
 }
 
 function interactWithQuestNpc(questId) {
@@ -2123,6 +2341,19 @@ function handleStoryCombatVictory(context) {
             addLog(NARRATIVE.story.linxiaoOffer, 'dialogue');
             offerLinxiaoChoice();
             break;
+        case 'proxyBoss':
+            gameState.progress.flags.agentDefeated = true;
+            markCharacterSeen('dreamland_agent');
+            markPetSeen('棱镜机偶');
+            if (getInventoryCount('实验门卡') === 0) {
+                addInventoryItem('实验门卡', 1);
+            }
+            addLog(NARRATIVE.story.agentDefeat, 'dialogue');
+            setButtons([
+                { text: '检查实验室门禁', action: startLaboratoryDoorPuzzle },
+                { text: '先返回村庄', action: enterHub }
+            ]);
+            break;
         case 'forestFirstBattle':
             gameState.progress.flags.forestEncounterDone = true;
             gameState.progress.storyStep = STORY_STEPS.FOREST_CLEARED;
@@ -2132,9 +2363,10 @@ function handleStoryCombatVictory(context) {
                 { text: '返回村庄', action: enterHub }
             ]);
             break;
-        case 'robotBattle':
+        case 'innerBoss':
             addInventoryItem('星光碎片', 1);
-            addLog(NARRATIVE.story.robotDefeat, 'sys');
+            markCharacterSeen('inner_aberration');
+            addLog(NARRATIVE.story.innerBossDefeat, 'sys');
             completeChapterOne();
             break;
         default:

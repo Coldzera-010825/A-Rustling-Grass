@@ -1,5 +1,6 @@
-﻿const GAME_VERSION = '0.12.1';
+﻿const GAME_VERSION = '0.13.0';
 const VERSION_HISTORY = [
+    { version: '0.13.0', date: '2026-03-03', summary: '重构第一章主线节奏，加入村庄调查解谜、代理人守门战、实验室门禁谜题与内部失衡实验体 Boss。' },
     { version: '0.12.1', date: '2026-03-03', summary: '重构图鉴大全交互为居中弹窗，整合技能升级信息，并为不同稀有度增加独立颜色标记。' },
     { version: '0.12.0', date: '2026-03-03', summary: '新增剧情获得的图鉴大全，收录宠物、人物与敌对单位，并按遭遇与捕获逐步解锁条目。' },
     { version: '0.11.2', date: '2026-03-03', summary: '新增开发者专用的 NPC 对话与任务总表文档，汇总当前主线、支线和村庄对话实现。' },
@@ -117,7 +118,8 @@ const MONSTER_DEX = {
     '森林蛛': { id: '#013', rarity: '普通', type: '虫', stats: { hp: 20, mp: 9, atk: 5, spd: 5 }, skills: ['蛛网', '毒刺', '潜伏'], habitat: '呢喃森林', capturable: true, note: '控制流宠物。' },
     '烈风隼': { id: '#014', rarity: '超稀有', type: '飞行', stats: { hp: 18, mp: 12, atk: 7, spd: 8 }, skills: ['风刃', '急袭', '暴风'], habitat: '回声草丛', capturable: true, note: '当前版本最快单位。' },
     '炽尾蜥': { id: '#015', rarity: '超稀有', type: '火', stats: { hp: 21, mp: 13, atk: 7, spd: 5 }, skills: ['火焰冲', '灼烧', '炎爆'], habitat: '呢喃森林', capturable: true, note: '森林深处火系变种。' },
-    '星纹鹿王': { id: '#016', rarity: '极品', type: '草', stats: { hp: 28, mp: 18, atk: 8, spd: 6 }, skills: ['星辉冲', '森之庇护', '枝影束缚'], habitat: '呢喃森林（极低概率）', capturable: true, captureRequirement: '究极球', note: '第一章隐藏 Boss 级捕获宠，需要特殊规格的封印手段。' }
+    '星纹鹿王': { id: '#016', rarity: '极品', type: '草', stats: { hp: 28, mp: 18, atk: 8, spd: 6 }, skills: ['星辉冲', '森之庇护', '枝影束缚'], habitat: '呢喃森林（极低概率）', capturable: true, captureRequirement: '究极球', note: '第一章隐藏 Boss 级捕获宠，需要特殊规格的封印手段。' },
+    '棱镜机偶': { id: '#017', rarity: '极品', type: '机械', stats: { hp: 26, mp: 14, atk: 8, spd: 5 }, skills: ['电击', '防御姿态', '雷霆冲'], habitat: '森林实验室外围', capturable: false, note: '幻梦乐园布置在实验室外围的机械宠物，负责门禁压制与近距离镇场。' }
 };
 const STORY_STEPS = {
     INTRO: 'intro',
@@ -126,8 +128,10 @@ const STORY_STEPS = {
     READY_FOR_FIRST_HUNT: 'ready_for_first_hunt',
     LINXIAO_PENDING: 'linxiao_pending',
     LINXIAO_CHOICE: 'linxiao_choice',
+    VILLAGE_INVESTIGATION: 'village_investigation',
     FOREST_UNLOCKED: 'forest_unlocked',
     FOREST_CLEARED: 'forest_cleared',
+    LAB_DOOR_UNLOCKED: 'lab_door_unlocked',
     CHAPTER_ONE_COMPLETE: 'chapter_one_complete'
 };
 
@@ -178,6 +182,13 @@ function createInitialProgress() {
             linxiaoDeclined: false,
             forestEncounterDone: false,
             laboratoryFound: false,
+            investigationBriefed: false,
+            lisiObservationSolved: false,
+            marketSupplySolved: false,
+            bridgeClueConfirmed: false,
+            agentDefeated: false,
+            labDoorUnlocked: false,
+            innerLabSeen: false,
             chapter1Completed: false,
             soloRewardGranted: false
         }
@@ -319,6 +330,12 @@ const PET_SKILL_PLANS = {
         { level: 3, skill: '森之庇护', category: '进阶' },
         { level: 6, skill: '枝影束缚', category: '进阶' },
         { level: 10, skill: '星林圣裁', category: '终阶' }
+    ],
+    '棱镜机偶': [
+        { level: 1, skill: '电击', category: '属性' },
+        { level: 3, skill: '防御姿态', category: '进阶' },
+        { level: 6, skill: '雷霆冲', category: '进阶' },
+        { level: 10, skill: '过载孢爆', category: '终阶' }
     ]
 };
 
@@ -356,7 +373,8 @@ const PETS = {
     '森林蛛': { type: '虫', rarity: '普通', hp: 20, mp: 9, atk: 5, spd: 5, skills: getPetSkillsByLevel('森林蛛', 1), skillPlan: PET_SKILL_PLANS['森林蛛'] },
     '烈风隼': { type: '飞行', rarity: '超稀有', hp: 18, mp: 12, atk: 7, spd: 8, skills: getPetSkillsByLevel('烈风隼', 1), skillPlan: PET_SKILL_PLANS['烈风隼'] },
     '炽尾蜥': { type: '火', rarity: '超稀有', hp: 21, mp: 13, atk: 7, spd: 5, skills: getPetSkillsByLevel('炽尾蜥', 1), skillPlan: PET_SKILL_PLANS['炽尾蜥'] },
-    '星纹鹿王': { type: '草', rarity: '极品', hp: 28, mp: 18, atk: 8, spd: 6, skills: getPetSkillsByLevel('星纹鹿王', 1), skillPlan: PET_SKILL_PLANS['星纹鹿王'], requiredBall: '究极球' }
+    '星纹鹿王': { type: '草', rarity: '极品', hp: 28, mp: 18, atk: 8, spd: 6, skills: getPetSkillsByLevel('星纹鹿王', 1), skillPlan: PET_SKILL_PLANS['星纹鹿王'], requiredBall: '究极球' },
+    '棱镜机偶': { type: '机械', rarity: '极品', hp: 26, mp: 14, atk: 8, spd: 5, skills: getPetSkillsByLevel('棱镜机偶', 1), skillPlan: PET_SKILL_PLANS['棱镜机偶'] }
 };
 
 const ENCOUNTER_POOLS = {
@@ -388,6 +406,16 @@ const ENEMIES = {
         spd: 5,
         skills: ['电击', '麻痹粉'],
         captureable: false
+    },
+    '失衡实验体': {
+        type: '草/电',
+        rarity: '极品',
+        hp: 42,
+        mp: 18,
+        atk: 10,
+        spd: 7,
+        skills: ['枝影束缚', '雷霆冲', '过载孢爆'],
+        captureable: false
     }
 };
 
@@ -401,6 +429,16 @@ const NPC_CHARACTERS = {
         skills: getClassSkillsByLevel('弓兵', 1),
         pet: '咕咕鸟',
         description: '你幼年时最要好的玩伴，嘴上爱逞强，心里却比谁都护短。'
+    },
+    '幻梦乐园代理人': {
+        class: '魔法师',
+        hp: 30,
+        mp: 18,
+        atk: 9,
+        spd: 6,
+        skills: getClassSkillsByLevel('魔法师', 3),
+        pet: '棱镜机偶',
+        description: '奉命守在实验室外围的乐园代理人，相信风纹必须被设计、被规训，才能换来安全。'
     }
 };
 
@@ -612,17 +650,19 @@ const ENCYCLOPEDIA_CHARACTER_ENTRIES = [
         name: '幻梦乐园代理',
         role: '乐园前哨人员',
         group: '势力人物',
+        className: '魔法师',
+        petName: '棱镜机偶',
         unlockHint: '在森林实验室听见对方发言后解锁。',
         description: '幻梦乐园埋在森林深处的代理声音。语气温和，却把“设计自然”当成理所当然的事。'
     },
     {
-        id: 'lab_robot',
+        id: 'inner_aberration',
         order: 10,
-        name: '实验机器人',
-        role: '实验室守卫',
+        name: '失衡实验体',
+        role: '内部 Boss / 失败造物',
         group: '敌对单位',
-        unlockHint: '在森林实验室遭遇实验机器人后解锁。',
-        description: '被用于实验室守备的机械单位，动作僵硬却服从性极高，说明这处设施并非临时搭建。'
+        unlockHint: '在实验室深处遭遇失衡实验体后解锁。',
+        description: '风纹压缩实验失控后诞生的异常生命。它不再像被驯服的宠物，更像把整座实验室怨气和风纹残响一起吞进去的活灾害。'
     }
 ];
 
@@ -720,26 +760,35 @@ const NARRATIVE = {
         linxiaoBossStart: '=== 林晓的试炼战 ===',
         linxiaoDefeat: '<strong>林晓</strong>喘着气笑起来：“行，是你赢。你比我想的还要更像个真正的冒险者。”',
         linxiaoOffer: '<strong>林晓</strong>看向你身后的草海，语气少见地认真：“要不要让我一起走？两个人走会稳一点，但真要各自赌命时，你也得自己想清楚。”',
+        investigationIntro: '<strong>村长</strong>在你们两人做出决定后沉默了片刻，才缓缓开口：“草丛乱成这样，森林里又冒出不该有的金属门。先别急着往深处扎。把村里的线索都拢一拢，别让自己像没头苍蝇一样撞进去。”',
+        investigationBrief: '新的目标：在村里完成调查。去磨坊前找李四分析异常记录，再去集市长棚追查外来采购。桥边那条线如果查完，会成为更扎实的旁证。',
         soloChoice: '你决定独自前行。林晓没有拦你，只把一枚磨得温热的铜色徽记塞进你掌心：“既然要一个人扛，就把这点好运也带上。”',
         duoChoice: '你朝林晓伸出了手。他咧嘴一笑，把弓往肩上一甩：“好，那从今天起，危险一人一半，热闹也是。”',
         soloReward: '你获得了 <strong>孤行者徽记</strong> 与 40 风纹币。今后单人战斗会获得额外经验与赏金，但你也将独自承担全部压力。',
         duoPenalty: '林晓加入队伍。双人队伍更稳，但战斗经验会被平分，额外赏金也会减少。',
-        forestUnlocked: '村口通往呢喃森林的小路被重新清理出来了。更深的阴影、更重的风险，也在那边等着你。',
+        forestUnlocked: '你把村里的几条线索拼起来后，结论已经无法回避：呢喃森林深处真的藏着一处人造设施。村长命人重新清理了通往森林的小路，而你知道，这一回你不是在冒险，而是在往真相里走。',
         forestBattleIntro: '盘根后的阴影忽然向下垂落，一只森林蛛借着细丝无声逼近，足肢敲得枯叶发出细密的沙沙声。',
-        forestBattleVictory: '击退森林蛛后，前方一小片缠藤忽然晃动起来。你拨开枯枝，发现藤幕后藏着一扇钉满铆钉的旧金属门。门缝里渗出的并不是自然风，而是一种被压得过于安静的风纹震颤。',
-        labDiscovery: '那扇门后并不是猎人小屋，而是一条带着机油味与消毒水味的狭窄通道。墙上暗淡的灯管闪了两下，像是有东西刚刚苏醒。仪表盘上滚动着你看不懂的术语，但“风纹压缩”“恒定核心”几个词异常清晰。',
-        dreamlandAgent: '<strong>幻梦乐园代理</strong>的声音从深处传来，轻飘飘得近乎温柔：“欢迎，误入者。野性的风纹迟早会失控。我们不是在破坏它，我们是在为这个世界设计一个更安全的新秩序。”',
-        robotDefeat: '最后一束火花熄灭后，实验室终于安静下来。你在碎裂的金属板下拾起一枚微微发亮的棱形碎片，它冷得像一小块凝固星光。附近的屏幕还在断断续续闪烁：风纹浓度异常上升，源头指向微风村。',
+        forestBattleVictory: '击退森林蛛后，前方一小片缠藤忽然晃动起来。你拨开枯枝，发现藤幕后藏着一扇钉满铆钉的旧金属门。门边还残留着人造轨道与拖拽痕，像有什么大型装置被反复推进又拖回。',
+        labDiscovery: '你顺着门外的电缆和压痕一路看过去，确认这里不是废弃猎屋，而是一处仍在运转的实验设施。门禁槽位旁刻着三组陌生纹印，像是在等一名知道答案的人来开启。',
+        dreamlandAgent: '<strong>幻梦乐园代理人</strong>从林影后走出，手套上还沾着未擦净的导电粉末：“到这里为止。你们村子守着旧时代的共生故事太久了，所以才看不懂眼前这一步有多必要。风纹会失控，自然也会失控。我们只是比你们更早承认这一点。”',
+        agentBossStart: '=== 森林实验室外围战 ===',
+        agentDefeat: '<strong>幻梦乐园代理人</strong>在破碎的光幕前后退半步，声音第一次发紧：“你闯得进外门，也未必承受得住里面的东西。那已经不是乐园能完全控制的样本了。”他丢下一张带裂痕的门卡，带着残余的设备数据匆匆撤离了林间。',
+        doorPuzzleIntro: '门卡贴上门禁后，老旧面板亮了一下，却没有立刻开启。屏幕上跳出的是三行校验提示：风之痕、元素序、齿纹比对。看来就算拿到门卡，也仍然需要正确理解这里的逻辑。',
+        doorPuzzleSolved: '最后一道校验通过时，门后的锁舌一节节退开。压抑已久的冷气混着焦糊、机油和腐败的气味一起涌出来，像整座设施终于肯把里面的真相吐给你看。',
+        innerLabDiscovery: '实验室内部并不像想象中那样秩序井然。代替而来的是翻倒的器械、爆开的培养管、被踩碎的记录板，以及几具再也没有起身的研究人员遗骸。墙面上布满焦痕，像有什么东西曾在这里疯狂撞击。某间观察室的玻璃从内侧整个炸裂，拖行的血迹和青绿色孢粉一路延伸到最深处。残存终端反复闪着同一句报错：<strong>核心压缩失衡，样本脱离收束。</strong>',
+        innerBossIntro: '最深处的收束仓前，一团扭曲的枝影和电弧缓缓抬起了头。它本该是什么已经看不出来了，只剩下被强行压缩又反噬四散的风纹在体内暴走。那不是被驯化的宠物，而是实验失败后留在这里的活灾害。',
+        innerBossStart: '=== 失衡实验体 ===',
+        innerBossDefeat: '失衡实验体终于在一阵撕裂般的尖啸后崩散倒地，缠在它身上的电弧一截截熄灭。你在碎裂的收束仓下找到一枚微微发亮的棱形碎片，它冷得像一小块凝固星光。终端残屏也在这时重新跳出一行警报：风纹浓度异常上升，源头指向微风村。',
         chapterComplete: '第一章结束。你带着 <strong>星光碎片</strong> 返回村庄，知道自己已经不可能再退回平静的昨天。微风村也许不是边缘地带，而是整场风纹失衡真正开始收束的地方。',
         nextChapterLocked: '第二章尚未开放。当前可玩内容仍限制在第一章，但“风纹异常的核心靠近微风村”与大陆三大势力的动机，已经作为后续主线正式埋下。实验室残屏最后闪过的远程回执只有一句话：“确认目标区域。准备回收。”'
     },
     village: {
         chiefQuestOffer: '<strong>村长</strong>：“回声草丛再这么闹下去，孩子们连放风筝都不敢去了。帮我清一清那里的野宠吧。”',
-        chiefQuestDone: '<strong>村长</strong>笑着点头：“草丛的动静果然小下来了。这份谢礼你拿着，别推辞。”',
+        chiefQuestDone: '<strong>村长</strong>笑着点头：“草丛的动静果然小下来了。不过有件事怪得很，几拨野宠逃窜的方向都像是在躲同一个东西。你把这点也记在心里。”',
         zhangsanQuestOffer: '<strong>张三</strong>捂着腰叹气：“我今天实在爬不上坡了。你要是顺路，帮我带两颗树果回来，我给你算跑腿钱。”',
-        zhangsanQuestDone: '<strong>张三</strong>接过树果，脸上总算有了笑纹：“这下能给家里那只老宠物熬点果浆了。”',
-        lisiQuestOffer: '<strong>李四</strong>抱着一叠观察笔记，小声说：“我想研究普通野宠的习性，但我自己一靠近它们就跑。你能不能替我抓一只回来？”',
-        lisiQuestDone: '<strong>李四</strong>几乎是扑上来接过记录板：“太好了，这下我的数据终于不是白纸了。”',
+        zhangsanQuestDone: '<strong>张三</strong>接过树果，脸上总算有了笑纹：“这下能给家里那只老宠物熬点果浆了。前两天连它都不肯往森林那边去，像是那边的风里混了铁味。”',
+        lisiQuestOffer: '<strong>李四</strong>抱着一叠观察笔记，小声说：“我想研究普通野宠的习性，但我自己一靠近它们就跑。你能不能替我抓一只回来？还有，我想请你帮我核一条判断。”',
+        lisiQuestDone: '<strong>李四</strong>几乎是扑上来接过记录板：“太好了，这下我的数据终于不是白纸了。它们不是单纯受惊，是被同一股扰动赶着动起来的。”',
         storeGreeting: '<strong>杂货铺老板阿禾</strong>把算盘拨得噼啪作响：“出门在外，缺的不是胆子，是准备。看看要带点什么。”',
         petMarketGreeting: '<strong>宠物行老板曲婶</strong>靠在木栏边冲你招手：“捡漏、收养、换手，我这儿都有。只要你养得起，就别让小家伙们空着笼子。”'
     },

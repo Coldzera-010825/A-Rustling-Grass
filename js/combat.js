@@ -1,41 +1,41 @@
 ﻿// ========== 战斗系统 ==========
 
 function createEnemyUnit(encounterId, options = {}) {
-    if (options.isBoss && encounterId === '林晓') {
-        const linxiaoData = NPC_CHARACTERS['林晓'];
-        const linxiaoPetData = PETS[linxiaoData.pet];
+    if (options.isBoss && NPC_CHARACTERS[encounterId]) {
+        const bossData = NPC_CHARACTERS[encounterId];
+        const companionData = PETS[bossData.pet] || ENEMIES[bossData.pet];
         const bossUnits = [
             {
-                id: 'enemy-linxiao',
-                name: '林晓',
-                class: linxiaoData.class,
-                hp: linxiaoData.hp,
-                maxHp: linxiaoData.hp,
-                mp: linxiaoData.mp,
-                maxMp: linxiaoData.mp,
-                atk: linxiaoData.atk,
-                spd: linxiaoData.spd,
-                skills: [...linxiaoData.skills],
+                id: `enemy-${encounterId}`,
+                name: encounterId,
+                class: bossData.class,
+                hp: bossData.hp,
+                maxHp: bossData.hp,
+                mp: bossData.mp,
+                maxMp: bossData.mp,
+                atk: bossData.atk,
+                spd: bossData.spd,
+                skills: [...bossData.skills],
                 level: 1,
                 isEnemy: true,
                 team: 'enemy'
             },
             {
-                id: 'enemy-linxiao-pet',
-                name: linxiaoData.pet,
-                type: linxiaoPetData.type,
-                rarity: linxiaoPetData.rarity,
-                hp: linxiaoPetData.hp,
-                maxHp: linxiaoPetData.hp,
-                mp: linxiaoPetData.mp,
-                maxMp: linxiaoPetData.mp,
-                atk: linxiaoPetData.atk,
-                spd: linxiaoPetData.spd,
-                skills: [...linxiaoPetData.skills],
+                id: `enemy-${bossData.pet}`,
+                name: bossData.pet,
+                type: companionData.type,
+                rarity: companionData.rarity,
+                hp: companionData.hp,
+                maxHp: companionData.hp,
+                mp: companionData.mp,
+                maxMp: companionData.mp,
+                atk: companionData.atk,
+                spd: companionData.spd,
+                skills: [...companionData.skills],
                 level: 1,
                 isEnemy: true,
                 isPet: true,
-                owner: '林晓',
+                owner: encounterId,
                 team: 'enemy'
             }
         ];
@@ -226,8 +226,15 @@ function startCombat(encounterId, options = {}) {
         markCharacterSeen('linxiao');
         markPetSeen(NPC_CHARACTERS['林晓']?.pet);
     }
+    if (options.isBoss && encounterId === '幻梦乐园代理人') {
+        markCharacterSeen('dreamland_agent');
+        markPetSeen(NPC_CHARACTERS['幻梦乐园代理人']?.pet);
+    }
     if (encounterId === '实验机器人') {
         markCharacterSeen('lab_robot');
+    }
+    if (encounterId === '失衡实验体') {
+        markCharacterSeen('inner_aberration');
     }
 
     const allies = buildCombatAllies();
