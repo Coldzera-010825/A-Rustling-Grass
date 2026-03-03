@@ -3,12 +3,15 @@
 let logArea;
 let buttonsArea;
 let teamInfo;
+let actionHelpArea;
+let uiModeToggleButton;
 let currentSaveSlot = null;
 let logQueue = [];
 let isLogProcessing = false;
 let pendingButtonsData = null;
 let lastButtonsData = null;
 let logIdleCallbacks = [];
+const UI_MODE_STORAGE_KEY = 'arg_ui_mode';
 
 function safeNumber(value, fallback = 0) {
     return Number.isFinite(Number(value)) ? Number(value) : fallback;
@@ -16,6 +19,41 @@ function safeNumber(value, fallback = 0) {
 
 function formatValue(value, fallback = 0) {
     return Number.isFinite(Number(value)) ? Number(value) : fallback;
+}
+
+function getCurrentGameVersion() {
+    return VERSION_HISTORY?.[0]?.version || GAME_VERSION;
+}
+
+function loadUiModePreference() {
+    try {
+        const savedMode = localStorage.getItem(UI_MODE_STORAGE_KEY);
+        return savedMode === 'ops' ? 'ops' : 'field';
+    } catch (error) {
+        return 'field';
+    }
+}
+
+function persistUiModePreference(mode) {
+    try {
+        localStorage.setItem(UI_MODE_STORAGE_KEY, mode);
+    } catch (error) {
+        // Ignore localStorage failures and keep the current in-memory mode.
+    }
+}
+
+function applyUiMode(mode = loadUiModePreference()) {
+    const safeMode = mode === 'ops' ? 'ops' : 'field';
+    document.body.dataset.uiMode = safeMode;
+    if (uiModeToggleButton) {
+        uiModeToggleButton.textContent = safeMode === 'ops' ? '切换到冒险视图' : '切换到作业台视图';
+    }
+}
+
+function toggleUiMode() {
+    const nextMode = document.body.dataset.uiMode === 'ops' ? 'field' : 'ops';
+    persistUiModePreference(nextMode);
+    applyUiMode(nextMode);
 }
 
 function createInitialGameState() {
@@ -83,6 +121,55 @@ function removeInventoryItem(itemName, amount = 1) {
     gameState.inventory[bucket][itemName] = Math.max(0, (gameState.inventory[bucket][itemName] || 0) - amount);
 }
 
+function getUnitSkillPlan(unit) {
+    if (!unit) return [];
+    if (unit.isPet) {
+        return PET_SKILL_PLANS[unit.name] || [];
+    }
+    return CLASS_SKILL_PLANS[unit.class] || [];
+}
+
+function getUnlockedSkillsForUnit(unit) {
+    if (!unit) return [];
+    const plan = getUnitSkillPlan(unit);
+    if (plan.length === 0) {
+        return Array.isArray(unit.skills) ? [...unit.skills] : [];
+    }
+    if (unit.isPet) {
+        return getPetSkillsByLevel(unit.name, safeNumber(unit.level, 1));
+    }
+    return getClassSkillsByLevel(unit.class, safeNumber(unit.level, 1));
+}
+
+function syncUnitSkills(unit) {
+    if (!unit) return;
+    unit.skills = getUnlockedSkillsForUnit(unit);
+}
+
+function getBasicAttackDescription(unit) {
+    const roleLabel = unit?.isPet ? '宠物普攻' : '角色普攻';
+    const typeLabel = unit?.isPet ? `默认按 ${unit.type || '普通'} 属性判定。` : '不消耗 MP。';
+    return `${roleLabel}，伤害约为 ATK 的 75%。${typeLabel}`;
+}
+
+function getSkillDescription(skillName) {
+    const skill = SKILL_DATA[skillName];
+    if (!skill) return '暂无技能说明。';
+    const parts = [];
+    if (skill.type) parts.push(`属性：${skill.type}`);
+    parts.push(`MP：${safeNumber(skill.mpCost, 0)}`);
+    if (skill.damage > 0) parts.push(`效果：造成 ${skill.damage} 点基础伤害`);
+    if (skill.damage < 0) parts.push(`效果：恢复 ${Math.abs(skill.damage)} 点生命`);
+    if (skill.damage === 0) parts.push('效果：功能型技能');
+    parts.push(skill.desc);
+    return parts.join('｜');
+}
+
+function setActionHelp(text = '将鼠标悬停到技能按钮上，可以在这里查看说明。') {
+    if (!actionHelpArea) return;
+    actionHelpArea.innerHTML = text;
+}
+
 function resetLogSystem() {
     logQueue = [];
     isLogProcessing = false;
@@ -125,35 +212,35 @@ function showWaitingButtons() {
     button.disabled = true;
     button.className = 'log-wait-button';
     buttonsArea.appendChild(button);
-}
-
-function buildActionButtons(buttonsData) {
-    const finalButtons = [...buttonsData];
-    const inGameView = document.getElementById('game-container') && document.getElementById('game-container').style.display !== 'none';
-    const hasReturnButton = finalButtons.some((btn) => btn.action === promptReturnToMainMenu);
-    if (inGameView && !hasReturnButton) {
-        finalButtons.push({ text: '返回主菜单', action: promptReturnToMainMenu, className: 'secondary-button' });
-    }
-    return finalButtons;
+    setActionHelp('日志尚在播放，当前操作按钮会在文本滚动结束后恢复。');
 }
 
 function renderButtons(buttonsData) {
     if (!buttonsArea) return;
     lastButtonsData = buttonsData;
     buttonsArea.innerHTML = '';
-    buildActionButtons(buttonsData).forEach((btn) => {
+    buttonsData.forEach((btn) => {
         const button = document.createElement('button');
         button.innerText = btn.text;
         if (btn.disabled) button.disabled = true;
         if (btn.className) button.className = btn.className;
+        const helpText = btn.helpText || '';
+        if (helpText) {
+            button.addEventListener('mouseenter', () => setActionHelp(helpText));
+            button.addEventListener('focus', () => setActionHelp(helpText));
+            button.addEventListener('mouseleave', () => setActionHelp());
+            button.addEventListener('blur', () => setActionHelp());
+        }
         button.onclick = () => {
             Array.from(buttonsArea.querySelectorAll('button')).forEach((node) => {
                 node.disabled = true;
             });
+            setActionHelp('正在处理你的选择...');
             btn.action();
         };
         buttonsArea.appendChild(button);
     });
+    setActionHelp();
 }
 
 function flushPendingButtons() {
@@ -270,7 +357,7 @@ function renderBar(label, value, maxValue, className) {
 
 function updateNormalUI() {
     const progress = gameState.progress;
-    let html = `<div class="status-version">版本 ${GAME_VERSION}</div>`;
+    let html = `<div class="status-version">版本 ${getCurrentGameVersion()}</div>`;
 
     const renderUnitCard = (title, unit, options = {}) => {
         if (!unit) return '';
@@ -410,13 +497,14 @@ function selectClass(className) {
         maxMp: stats.mp,
         atk: stats.atk,
         spd: stats.spd,
-        skills: [...stats.skills],
+        skills: [],
         level: 1,
         exp: 0,
         isPlayer: true,
         isEnemy: false,
         team: 'ally'
     };
+    syncUnitSkills(gameState.player);
     gameState.progress.flags.classSelected = true;
     gameState.progress.storyStep = STORY_STEPS.CHOOSE_PET;
     addLog(`你选择了 <strong>${className}</strong>。`, 'sys');
@@ -449,7 +537,7 @@ function createPetInstance(petName) {
     const template = PETS[petName];
     const uid = `pet-${gameState.nextPetUid}`;
     gameState.nextPetUid += 1;
-    return {
+    const pet = {
         uid,
         id: uid,
         name: petName,
@@ -461,7 +549,7 @@ function createPetInstance(petName) {
         maxMp: template.mp,
         atk: template.atk,
         spd: template.spd,
-        skills: [...template.skills],
+        skills: [],
         level: 1,
         exp: 0,
         isPet: true,
@@ -469,11 +557,13 @@ function createPetInstance(petName) {
         owner: null,
         team: 'ally'
     };
+    syncUnitSkills(pet);
+    return pet;
 }
 
 function createNpcPartyMember(name) {
     const template = NPC_CHARACTERS[name];
-    return {
+    const member = {
         id: `npc-${name}`,
         name,
         class: template.class,
@@ -483,7 +573,7 @@ function createNpcPartyMember(name) {
         maxMp: template.mp,
         atk: template.atk,
         spd: template.spd,
-        skills: [...template.skills],
+        skills: [],
         level: 1,
         exp: 0,
         isEnemy: false,
@@ -494,6 +584,8 @@ function createNpcPartyMember(name) {
             return pet;
         })()
     };
+    syncUnitSkills(member);
+    return member;
 }
 
 function ensureVillageState() {
@@ -720,6 +812,42 @@ function openMonsterDex() {
         { text: '查看状态', action: viewStatus }
     ]);
 }
+
+function openSkillCompendium() {
+    if (!teamInfo) return;
+    if (gameState.phase === 'combat') {
+        addLog('战斗中暂时无法展开技能总览，请在回到探索或村庄后查看。', 'sys');
+        return;
+    }
+    addLog('=== 技能总览 ===', 'sys');
+    addLog('角色与宠物都会在 1 / 3 / 6 / 10 级按固定节点获得技能。把鼠标悬停在战斗技能按钮上，也会显示同样的技能说明。', 'sys');
+
+    let html = `<div class="status-version">版本 ${getCurrentGameVersion()}</div>`;
+    html += '<section class="status-card neutral skill-compendium-card"><div class="status-card-header"><div class="status-title">技能说明表</div><span class="status-pill level">Lv 1 / 3 / 6 / 10</span></div>';
+    SKILL_COMPENDIUM.forEach((entry) => {
+        html += `<div class="skill-owner-block">`;
+        html += `<div class="skill-owner-header"><strong>${entry.ownerType} · ${entry.ownerName}</strong><span class="status-pill rarity">${entry.ownerType}</span></div>`;
+        html += `<div class="skill-base-line"><span>${entry.baseAction}</span><span>${entry.baseDescription}</span></div>`;
+        entry.skills.forEach((skill) => {
+            html += `
+                <div class="skill-line">
+                    <span class="skill-line-level">Lv.${skill.level}</span>
+                    <span class="skill-line-name">${skill.skill}</span>
+                    <span class="skill-line-desc">${getSkillDescription(skill.skill)}</span>
+                </div>
+            `;
+        });
+        html += '</div>';
+    });
+    html += '</section>';
+    teamInfo.innerHTML = html;
+
+    setButtons([
+        { text: '返回村庄主界面', action: enterHub, helpText: '关闭技能总览并返回当前村庄界面。' },
+        { text: '查看状态', action: viewStatus, helpText: '回到角色、宠物、背包和任务的状态面板。' }
+    ]);
+}
+
 function openItemMenu() {
     addLog('你翻开行囊，检查人类用品和宠物用品的余量。', 'sys');
     setButtons([
@@ -1275,6 +1403,13 @@ function checkLevelUp(unit, isPlayerUnit) {
 
         addLog(`<strong>${unit.name}</strong> 升到了 ${unit.level} 级。`, 'heal');
         addLog(`HP上限 ${oldMaxHp} → ${unit.maxHp}，MP上限 ${oldMaxMp} → ${unit.maxMp}。升级后 MP 已回满，HP 恢复了损失值的一半。`, 'sys');
+        const previousSkills = new Set(unit.skills || []);
+        syncUnitSkills(unit);
+        const unlockedNow = (unit.skills || []).filter((skillName) => !previousSkills.has(skillName));
+        unlockedNow.forEach((skillName) => {
+            addLog(`<strong>${unit.name}</strong> 领悟了新技能 <strong>${skillName}</strong>。`, 'heal');
+            addLog(getSkillDescription(skillName), 'sys');
+        });
 
         expNeeded = EXP_SYSTEM.expToLevel(unit.level);
     }
@@ -1331,7 +1466,7 @@ function normalizeActorRecord(unit, fallback = {}) {
     normalized.mp = Math.max(0, Math.min(normalized.maxMp, safeNumber(normalized.mp, normalized.maxMp)));
     normalized.atk = Math.max(0, safeNumber(normalized.atk, fallback.atk ?? 0));
     normalized.spd = Math.max(0, safeNumber(normalized.spd, fallback.spd ?? 0));
-    normalized.skills = Array.isArray(normalized.skills) ? [...normalized.skills] : [...(fallback.skills || [])];
+    syncUnitSkills(normalized);
     return normalized;
 }
 
@@ -1348,7 +1483,7 @@ function normalizePlayerRecord(player) {
         mp: classTemplate.mp,
         atk: classTemplate.atk,
         spd: classTemplate.spd,
-        skills: classTemplate.skills,
+        skills: [],
         isPlayer: true,
         isEnemy: false,
         team: 'ally'
@@ -1379,7 +1514,7 @@ function normalizePartyMemberRecord(member) {
         mp: classTemplate.mp,
         atk: classTemplate.atk,
         spd: classTemplate.spd,
-        skills: classTemplate.skills,
+        skills: [],
         isEnemy: false,
         team: 'ally'
     });
@@ -1549,6 +1684,7 @@ function showLoadGameMenu() {
 
 function showAbout() {
     hideAllMenus();
+    renderAboutContent();
     document.getElementById('about-menu').style.display = 'flex';
 }
 
@@ -1571,15 +1707,48 @@ function startNewGame(slot) {
 function syncVersionLabels() {
     const menuVersion = document.getElementById('gameVersionLabel');
     const aboutVersion = document.getElementById('aboutVersionLabel');
-    if (menuVersion) menuVersion.textContent = `Version ${GAME_VERSION}`;
-    if (aboutVersion) aboutVersion.textContent = `版本: ${GAME_VERSION}`;
+    const toolbarVersion = document.getElementById('toolbarVersionLabel');
+    if (menuVersion) menuVersion.textContent = `Version ${getCurrentGameVersion()}`;
+    if (aboutVersion) aboutVersion.textContent = `版本: ${getCurrentGameVersion()}`;
+    if (toolbarVersion) toolbarVersion.textContent = `控制台 ${getCurrentGameVersion()}`;
+}
+
+function renderAboutContent() {
+    const aboutContent = document.getElementById('aboutContent');
+    if (!aboutContent) return;
+
+    const historyHtml = VERSION_HISTORY.map((entry) => `
+        <div class="about-changelog-item">
+            <div class="about-changelog-head">
+                <span class="about-changelog-version">v${entry.version}</span>
+                <span class="about-changelog-date">${entry.date}</span>
+            </div>
+            <div class="about-changelog-summary">${entry.summary}</div>
+        </div>
+    `).join('');
+
+    aboutContent.innerHTML = `
+        <p><strong>A Rustling Grass</strong></p>
+        <p>一款文字冒险 RPG 游戏</p>
+        <p>选择职业，收服宠物伙伴，在微风草丛中探索与战斗。</p>
+        <p id="aboutVersionLabel" style="margin-top: 20px;">版本: ${getCurrentGameVersion()}</p>
+        <div class="about-changelog">
+            <h3>更新日志</h3>
+            ${historyHtml}
+        </div>
+    `;
 }
 
 function initDomRefs() {
     logArea = document.getElementById('logArea');
     buttonsArea = document.getElementById('buttonsArea');
     teamInfo = document.getElementById('teamInfo');
+    actionHelpArea = document.getElementById('actionHelp');
+    uiModeToggleButton = document.getElementById('uiModeToggleButton');
     syncVersionLabels();
+    renderAboutContent();
+    applyUiMode(loadUiModePreference());
+    setActionHelp();
 }
 
 function initEngine() {

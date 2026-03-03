@@ -130,42 +130,96 @@ button:disabled {
     margin-bottom: 5px;
 }
 
-.hp-bar-container {
-    width: 100%;
-    height: 20px;
-    background-color: var(--hp-bg);
-    border: 1px solid var(--border-color);
-    margin: 5px 0;
-    position: relative;
-}
-
-.hp-bar-fill {
-    height: 100%;
-    background-color: var(--hp-fill);
-    transition: width 0.3s;
-}
-
-.hp-bar-text {
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    line-height: 20px;
-    font-size: 12px;
-    color: white;
-    text-shadow: 1px 1px 2px black;
-}
-
 .combat-unit {
     border: 1px solid #555;
     padding: 10px;
     margin-bottom: 10px;
     background-color: #2a2a2a;
+    position: relative;
+    overflow: hidden;
 }
 
 .combat-unit.active {
     border-color: #ff0;
     box-shadow: 0 0 10px #ff0;
+}
+
+.combat-unit-head {
+    margin-bottom: 8px;
+}
+
+.combat-stat-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.combat-stat-row.compact {
+    margin-bottom: 0;
+}
+
+.combat-stat-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    font-size: 12px;
+}
+
+.combat-stat-pill.hp {
+    color: #ffd0d0;
+}
+
+.combat-stat-pill.mp {
+    color: #c6d9ff;
+}
+
+.combat-float {
+    position: absolute;
+    right: 10px;
+    top: 8px;
+    font-weight: bold;
+    font-size: 15px;
+    pointer-events: none;
+    animation: combatFloatUp 0.9s ease-out forwards;
+}
+
+.combat-float.damage {
+    color: #ff6b6b;
+}
+
+.combat-float.heal {
+    color: #72e08c;
+}
+
+.combat-float.light {
+    font-size: 14px;
+}
+
+.combat-float.medium {
+    font-size: 18px;
+}
+
+.combat-float.heavy {
+    font-size: 22px;
+}
+
+.combat-unit.effect-damage {
+    animation: combatDamagePulse 0.65s ease;
+}
+
+.combat-unit.effect-damage.effect-medium {
+    animation: combatDamagePulseMedium 0.72s ease;
+}
+
+.combat-unit.effect-damage.effect-heavy {
+    animation: combatDamagePulseHeavy 0.8s ease;
+}
+
+.combat-unit.effect-heal {
+    animation: combatHealPulse 0.7s ease;
 }
 
 .skill-button {
@@ -336,6 +390,45 @@ button:disabled {
     margin: 10px 0;
 }
 
+.about-changelog {
+    margin-top: 24px;
+    text-align: left;
+    max-height: 320px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+.about-changelog h3 {
+    margin: 0 0 12px 0;
+    color: #b7d9af;
+}
+
+.about-changelog-item {
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    border: 1px solid rgba(76, 175, 80, 0.24);
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+}
+
+.about-changelog-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 6px;
+    font-size: 13px;
+}
+
+.about-changelog-version {
+    color: #d6efc6;
+    font-weight: bold;
+}
+
+.about-changelog-date,
+.about-changelog-summary {
+    color: #c7d1c9;
+}
+
 /* 在游戏中的保存按钮 */
 .save-game-btn {
     background-color: #225;
@@ -346,23 +439,6 @@ button:disabled {
 .save-game-btn:hover {
     background-color: #447;
 }
-.mp-bar-container {
-    width: 100%;
-    height: 16px;
-    background-color: #12314a;
-    border: 1px solid var(--border-color);
-    margin: 4px 0 8px 0;
-    position: relative;
-}
-
-.mp-bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #4fc3f7, #0277bd);
-    transition: width 0.3s;
-}
-
-
-
 .game-version {
     margin: 8px 0 0 0;
     color: #9fb59f;
@@ -594,4 +670,348 @@ button:disabled {
 
 .secondary-button:hover {
     background-color: #444;
+}
+
+/* ========== 新布局兼容层：默认保持原冒险风格 ========== */
+#game-container {
+    flex-direction: column;
+}
+
+#game-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    background-color: #222;
+}
+
+.toolbar-cluster {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.toolbar-button {
+    margin-bottom: 0;
+}
+
+.toolbar-version {
+    color: #9fb59f;
+    font-size: 12px;
+    letter-spacing: 1px;
+}
+
+.return-button {
+    background-color: #2f2f2f;
+    border-color: #666;
+}
+
+.return-button:hover {
+    background-color: #444;
+}
+
+#game-layout {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    gap: 20px;
+}
+
+#buttonsArea {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+#buttonsArea > button {
+    margin-bottom: 0;
+}
+
+.action-help {
+    margin-top: 8px;
+    padding: 10px 12px;
+    border: 1px dashed #555;
+    background-color: #1c1c1c;
+    color: #9cb29f;
+    font-size: 12px;
+    line-height: 1.5;
+    min-height: 42px;
+}
+
+.skill-compendium-card {
+    max-height: calc(100vh - 220px);
+    overflow-y: auto;
+}
+
+.skill-owner-block {
+    padding: 10px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.skill-owner-block:first-of-type {
+    border-top: 0;
+    padding-top: 0;
+}
+
+.skill-owner-header,
+.skill-base-line,
+.skill-line {
+    display: grid;
+    grid-template-columns: 88px 140px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+    font-size: 12px;
+    margin-bottom: 6px;
+}
+
+.skill-base-line {
+    grid-template-columns: 88px minmax(0, 1fr);
+    color: #b8c7bc;
+}
+
+.skill-line-level {
+    color: #ffd77f;
+}
+
+.skill-line-name {
+    color: #d8ebd8;
+    font-weight: bold;
+}
+
+.skill-line-desc {
+    color: #aeb8b1;
+    line-height: 1.45;
+}
+
+/* ========== 作业台风格：仅在切换后生效 ========== */
+body[data-ui-mode='ops'] {
+    background:
+        linear-gradient(180deg, #edf1f4 0%, #dfe6eb 100%);
+    color: #1c2731;
+}
+
+body[data-ui-mode='ops'] #game-toolbar {
+    background: linear-gradient(180deg, #f9fbfc 0%, #e7edf2 100%);
+    border-color: #b9c7d3;
+    box-shadow: 0 8px 24px rgba(32, 54, 71, 0.12);
+}
+
+body[data-ui-mode='ops'] .toolbar-version {
+    color: #546473;
+}
+
+body[data-ui-mode='ops'] #game-layout {
+    display: grid;
+    grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.35fr) minmax(320px, 1fr);
+    gap: 14px;
+}
+
+body[data-ui-mode='ops'] #left-panel {
+    display: contents;
+}
+
+body[data-ui-mode='ops'] #logSection,
+body[data-ui-mode='ops'] #bottom-right,
+body[data-ui-mode='ops'] #top-right {
+    background: linear-gradient(180deg, #fdfefe 0%, #eef3f6 100%);
+    color: #22313d;
+    border: 1px solid #c2ced8;
+    border-radius: 10px;
+    box-shadow: 0 10px 28px rgba(41, 62, 78, 0.10);
+}
+
+body[data-ui-mode='ops'] #logSection {
+    order: 2;
+}
+
+body[data-ui-mode='ops'] #bottom-right {
+    order: 1;
+    min-height: 0;
+    max-height: none;
+}
+
+body[data-ui-mode='ops'] #right-panel {
+    min-width: 0;
+}
+
+body[data-ui-mode='ops'] #top-right {
+    order: 3;
+}
+
+body[data-ui-mode='ops'] #logArea {
+    background-image:
+        linear-gradient(to bottom, rgba(77, 108, 132, 0.06) 1px, transparent 1px);
+    background-size: 100% 28px;
+    padding-right: 4px;
+}
+
+body[data-ui-mode='ops'] .log-entry {
+    color: #22313d;
+}
+
+body[data-ui-mode='ops'] .log-sys {
+    color: #627789;
+}
+
+body[data-ui-mode='ops'] .log-dialogue {
+    color: #245c86;
+}
+
+body[data-ui-mode='ops'] .log-combat {
+    color: #8c5300;
+}
+
+body[data-ui-mode='ops'] .log-damage {
+    color: #b34141;
+}
+
+body[data-ui-mode='ops'] .log-heal {
+    color: #2d7a58;
+}
+
+body[data-ui-mode='ops'] button {
+    background: linear-gradient(180deg, #f4f7f9 0%, #dde6ed 100%);
+    color: #1f2c37;
+    border-color: #b4c2cd;
+}
+
+body[data-ui-mode='ops'] button:hover {
+    background: linear-gradient(180deg, #ffffff 0%, #e5edf4 100%);
+}
+
+body[data-ui-mode='ops'] .skill-button {
+    background: linear-gradient(180deg, #eef6fb 0%, #d8e8f2 100%);
+    border-color: #a8c2d3;
+}
+
+body[data-ui-mode='ops'] .skill-button:hover {
+    background: linear-gradient(180deg, #f7fbff 0%, #e2eef6 100%);
+}
+
+body[data-ui-mode='ops'] .return-button {
+    background: linear-gradient(180deg, #fbecec 0%, #f0d7d7 100%);
+    border-color: #cfaaaa;
+}
+
+body[data-ui-mode='ops'] .return-button:hover {
+    background: linear-gradient(180deg, #fff4f4 0%, #f4dede 100%);
+}
+
+body[data-ui-mode='ops'] .action-help {
+    border-color: #bfd0dc;
+    background: #f7fafc;
+    color: #506272;
+}
+
+body[data-ui-mode='ops'] .status-card {
+    background: linear-gradient(180deg, #ffffff 0%, #f0f4f7 100%);
+    border-color: #c3d0db;
+}
+
+body[data-ui-mode='ops'] .status-title {
+    color: #27475f;
+}
+
+body[data-ui-mode='ops'] .status-subtitle,
+body[data-ui-mode='ops'] .inventory-empty,
+body[data-ui-mode='ops'] .skill-line-desc {
+    color: #627789;
+}
+
+body[data-ui-mode='ops'] .status-version {
+    border-color: #aebfcc;
+    color: #476174;
+    background: rgba(100, 131, 156, 0.08);
+}
+
+body[data-ui-mode='ops'] .combat-unit {
+    background: #f5f9fb;
+    border-color: #c5d2dc;
+}
+
+body[data-ui-mode='ops'] .combat-unit.active {
+    border-color: #5f8fb7;
+    box-shadow: 0 0 0 2px rgba(95, 143, 183, 0.18);
+}
+
+body[data-ui-mode='ops'] .combat-stat-pill {
+    background: rgba(67, 96, 118, 0.08);
+}
+
+body[data-ui-mode='ops'] .combat-stat-pill.hp {
+    color: #9f4040;
+}
+
+body[data-ui-mode='ops'] .combat-stat-pill.mp {
+    color: #2d5f95;
+}
+
+body[data-ui-mode='ops'] .about-changelog-item {
+    border-color: #ccd7e0;
+    background: rgba(86, 117, 145, 0.04);
+}
+
+body[data-ui-mode='ops'] .about-changelog h3,
+body[data-ui-mode='ops'] .about-changelog-version {
+    color: #3d607d;
+}
+
+body[data-ui-mode='ops'] .about-changelog-date,
+body[data-ui-mode='ops'] .about-changelog-summary {
+    color: #5f7385;
+}
+
+@keyframes combatFloatUp {
+    0% {
+        opacity: 0;
+        transform: translateY(10px) scale(0.85);
+    }
+    20% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-18px) scale(1.06);
+    }
+}
+
+@keyframes combatDamagePulse {
+    0%, 100% { box-shadow: 0 0 0 rgba(255, 90, 90, 0); }
+    40% { box-shadow: 0 0 0 2px rgba(255, 90, 90, 0.22); }
+}
+
+@keyframes combatDamagePulseMedium {
+    0%, 100% { box-shadow: 0 0 0 rgba(255, 90, 90, 0); transform: translateX(0); }
+    25% { box-shadow: 0 0 0 3px rgba(255, 90, 90, 0.26); transform: translateX(-1px); }
+    55% { transform: translateX(2px); }
+}
+
+@keyframes combatDamagePulseHeavy {
+    0%, 100% { box-shadow: 0 0 0 rgba(255, 84, 84, 0); transform: translateX(0) scale(1); }
+    20% { box-shadow: 0 0 0 4px rgba(255, 84, 84, 0.32); transform: translateX(-2px) scale(0.99); }
+    45% { transform: translateX(3px) scale(1.01); }
+}
+
+@keyframes combatHealPulse {
+    0%, 100% { box-shadow: 0 0 0 rgba(103, 226, 141, 0); }
+    45% { box-shadow: 0 0 0 3px rgba(103, 226, 141, 0.24); }
+}
+
+@media (max-width: 900px) {
+    #game-toolbar,
+    #game-layout {
+        flex-direction: column;
+        display: flex;
+    }
+
+    #right-panel {
+        min-width: 0;
+    }
+
+    body[data-ui-mode='ops'] #left-panel {
+        display: flex;
+    }
 }

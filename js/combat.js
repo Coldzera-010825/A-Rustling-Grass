@@ -4,7 +4,7 @@ function createEnemyUnit(encounterId, options = {}) {
     if (options.isBoss && encounterId === '林晓') {
         const linxiaoData = NPC_CHARACTERS['林晓'];
         const linxiaoPetData = PETS[linxiaoData.pet];
-        return [
+        const bossUnits = [
             {
                 id: 'enemy-linxiao',
                 name: '林晓',
@@ -16,6 +16,7 @@ function createEnemyUnit(encounterId, options = {}) {
                 atk: linxiaoData.atk,
                 spd: linxiaoData.spd,
                 skills: [...linxiaoData.skills],
+                level: 1,
                 isEnemy: true,
                 team: 'enemy'
             },
@@ -31,12 +32,15 @@ function createEnemyUnit(encounterId, options = {}) {
                 atk: linxiaoPetData.atk,
                 spd: linxiaoPetData.spd,
                 skills: [...linxiaoPetData.skills],
+                level: 1,
                 isEnemy: true,
                 isPet: true,
                 owner: '林晓',
                 team: 'enemy'
             }
         ];
+        bossUnits.forEach((unit) => syncUnitSkills(unit));
+        return bossUnits;
     }
 
     const enemyData = ENEMIES[encounterId] || PETS[encounterId];
@@ -44,7 +48,7 @@ function createEnemyUnit(encounterId, options = {}) {
         throw new Error(`Unknown enemy: ${encounterId}`);
     }
 
-    return [{
+    const enemyUnits = [{
         id: `enemy-${encounterId}`,
         name: encounterId,
         type: enemyData.type,
@@ -56,12 +60,15 @@ function createEnemyUnit(encounterId, options = {}) {
         atk: enemyData.atk,
         spd: enemyData.spd,
         skills: [...enemyData.skills],
+        level: 1,
         isEnemy: true,
         isPet: !!PETS[encounterId],
         captureable: enemyData.captureable !== false && !!PETS[encounterId],
         requiredBall: enemyData.requiredBall || null,
         team: 'enemy'
     }];
+    enemyUnits.forEach((unit) => syncUnitSkills(unit));
+    return enemyUnits;
 }
 
 function parseTypeParts(typeValue) {
@@ -138,19 +145,54 @@ function buildCombatAllies() {
     return allies;
 }
 
+function getCombatEffectTier(amount) {
+    if (amount >= 10) return 'heavy';
+    if (amount >= 6) return 'medium';
+    return 'light';
+}
+
+function triggerCombatUnitEffect(unit, kind, amount) {
+    if (!unit) return;
+    const effectToken = `${Date.now()}-${Math.random()}`;
+    unit.uiEffect = {
+        token: effectToken,
+        kind,
+        amount,
+        tier: getCombatEffectTier(Math.abs(amount))
+    };
+    updateUI();
+    window.setTimeout(() => {
+        if (unit.uiEffect && unit.uiEffect.token === effectToken) {
+            delete unit.uiEffect;
+            updateUI();
+        }
+    }, 950);
+}
+
 function updateCombatUI() {
     const cs = gameState.combatState;
     let html = '<h4>战斗中</h4>';
 
     const renderUnit = (unit, isActive) => {
-        const hpPercent = Math.max(0, (safeNumber(unit.hp) / Math.max(1, safeNumber(unit.maxHp, 1))) * 100);
-        const mpPercent = Math.max(0, (safeNumber(unit.mp) / Math.max(1, safeNumber(unit.maxMp, 1))) * 100);
+        const effect = unit.uiEffect;
+        const effectClass = effect ? ` effect-${effect.kind} effect-${effect.tier}` : '';
+        const effectHtml = effect
+            ? `<div class="combat-float ${effect.kind === 'heal' ? 'heal' : 'damage'} ${effect.tier}">${effect.kind === 'heal' ? '+' : '-'}${Math.abs(effect.amount)}</div>`
+            : '';
         return `
-            <div class="combat-unit ${isActive ? 'active' : ''}">
-                <strong>${unit.name}</strong> (${unit.type || unit.class || '单位'}) <span class="combat-level">Lv.${safeNumber(unit.level, 1)}</span>
-                <div class="hp-bar-container"><div class="hp-bar-fill" style="width:${hpPercent}%"></div><div class="hp-bar-text">HP ${formatValue(unit.hp)}/${formatValue(unit.maxHp, 1)}</div></div>
-                <div class="mp-bar-container"><div class="mp-bar-fill" style="width:${mpPercent}%"></div><div class="hp-bar-text">MP ${formatValue(unit.mp)}/${formatValue(unit.maxMp, 1)}</div></div>
-                <div style="font-size:11px;">ATK:${formatValue(unit.atk)} SPD:${formatValue(unit.spd)}</div>
+            <div class="combat-unit ${isActive ? 'active' : ''}${effectClass}">
+                ${effectHtml}
+                <div class="combat-unit-head">
+                    <strong>${unit.name}</strong> (${unit.type || unit.class || '单位'}) <span class="combat-level">Lv.${safeNumber(unit.level, 1)}</span>
+                </div>
+                <div class="combat-stat-row">
+                    <span class="combat-stat-pill hp">HP ${formatValue(unit.hp)}/${formatValue(unit.maxHp, 1)}</span>
+                    <span class="combat-stat-pill mp">MP ${formatValue(unit.mp)}/${formatValue(unit.maxMp, 1)}</span>
+                </div>
+                <div class="combat-stat-row compact">
+                    <span class="combat-stat-pill">ATK ${formatValue(unit.atk)}</span>
+                    <span class="combat-stat-pill">SPD ${formatValue(unit.spd)}</span>
+                </div>
             </div>
         `;
     };
@@ -245,7 +287,12 @@ function executeTurn() {
 }
 
 function showCombatOptions(unit) {
-    const buttons = [{ text: `普通攻击`, action: () => useBasicAttack(unit), className: 'skill-button' }];
+    const buttons = [{
+        text: '普通攻击',
+        action: () => useBasicAttack(unit),
+        className: 'skill-button',
+        helpText: getBasicAttackDescription(unit)
+    }];
 
     unit.skills.forEach((skillName) => {
         const skill = SKILL_DATA[skillName];
@@ -254,15 +301,16 @@ function showCombatOptions(unit) {
             text: `${skillName}${costLabel}`,
             action: () => useSkill(unit, skillName),
             className: 'skill-button',
-            disabled: unit.mp < skill.mpCost
+            disabled: unit.mp < skill.mpCost,
+            helpText: getSkillDescription(skillName)
         });
     });
 
     if (canAttemptCapture()) {
-        buttons.push({ text: '投掷精灵球', action: () => openCaptureMenu(unit) });
+        buttons.push({ text: '投掷精灵球', action: () => openCaptureMenu(unit), helpText: '从背包里选择捕获球。目标越残血、球等级越高，成功率越高。' });
     }
 
-    buttons.push({ text: '返回村庄', action: fleeToVillage });
+    buttons.push({ text: '返回村庄', action: fleeToVillage, helpText: '立即脱离战斗并回到村庄，队伍会被恢复。' });
     setButtons(buttons);
 }
 
@@ -281,6 +329,7 @@ function useBasicAttack(attacker) {
     addLog(`<strong>${attacker.name}</strong> 发动了普通攻击。`, 'combat');
     const damage = applyTypeDamage(baseDamage, attacker, target);
     target.hp = Math.max(0, target.hp - damage);
+    triggerCombatUnitEffect(target, 'damage', damage);
     addLog(`→ <strong>${target.name}</strong> 受到 ${damage} 点伤害！(剩余HP: ${target.hp})`, 'damage');
     handleLinkedDefeat(target);
     maybeTriggerAllyLight(attacker, target);
@@ -332,11 +381,13 @@ function useSkill(attacker, skillName) {
             addLog(NARRATIVE.combat.critical, 'damage');
         }
         target.hp = Math.max(0, target.hp - damage);
+        triggerCombatUnitEffect(target, 'damage', damage);
         addLog(`→ <strong>${target.name}</strong> 受到 ${damage} 点伤害！(剩余HP: ${target.hp})`, 'damage');
         handleLinkedDefeat(target);
     } else if (skill.damage < 0) {
         const heal = -skill.damage;
         target.hp = Math.min(target.maxHp, target.hp + heal);
+        triggerCombatUnitEffect(target, 'heal', heal);
         addLog(`→ <strong>${target.name}</strong> 恢复了 ${heal} HP！(当前HP: ${target.hp})`, 'heal');
     } else {
         addLog(`→ ${skill.desc}`, 'sys');
@@ -400,9 +451,10 @@ function openCaptureMenu(unit) {
     const buttons = availableBalls.map((ballName) => ({
         text: `${ballName} x${getInventoryCount(ballName)}`,
         action: () => attemptCapture(unit, ballName),
-        className: 'skill-button'
+        className: 'skill-button',
+        helpText: `${ballName}：${BALL_DATA[ballName].description}`
     }));
-    buttons.push({ text: '返回技能菜单', action: () => showCombatOptions(unit) });
+    buttons.push({ text: '返回技能菜单', action: () => showCombatOptions(unit), helpText: '回到当前单位的攻击与技能菜单。' });
     setButtons(buttons);
 }
 

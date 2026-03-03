@@ -1,5 +1,6 @@
 ﻿const GAME_VERSION = '0.9.3';
 const VERSION_HISTORY = [
+    { version: '0.10.0', date: '2026-03-03', summary: '加入双界面风格、技能悬停说明、技能总览与按等级节点解锁技能。' },
     { version: '0.9.3', date: '2026-03-02', summary: '修复日志队列下的按钮卡死问题，并加入返回主菜单与保存提示。' },
     { version: '0.9.2', date: '2026-03-02', summary: '加入日志队列与战斗节奏延迟，降低日志瞬时刷屏问题。' },
     { version: '0.9.1', date: '2026-03-02', summary: '修复等级与 MP 显示、旧存档数值归一化、状态面板重构，并加入更新日志体系。' },
@@ -187,29 +188,163 @@ const EXP_SYSTEM = {
     }
 };
 
+const SKILL_UNLOCK_LEVELS = [1, 3, 6, 10];
+
+const CLASS_SKILL_PLANS = {
+    '战士': [
+        { level: 1, skill: '重击', category: '职业' },
+        { level: 3, skill: '盾墙', category: '职业' },
+        { level: 6, skill: '怒吼', category: '职业' },
+        { level: 10, skill: '破阵冲锋', category: '职业' }
+    ],
+    '弓兵': [
+        { level: 1, skill: '连射', category: '职业' },
+        { level: 3, skill: '刺破', category: '职业' },
+        { level: 6, skill: '捕猎陷阱', category: '职业' },
+        { level: 10, skill: '骤雨箭幕', category: '职业' }
+    ],
+    '魔法师': [
+        { level: 1, skill: '元素灼烧', category: '职业' },
+        { level: 3, skill: '奥术屏障', category: '职业' },
+        { level: 6, skill: '属性吸收', category: '职业' },
+        { level: 10, skill: '共鸣过载', category: '职业' }
+    ],
+    '牧师': [
+        { level: 1, skill: '治愈', category: '职业' },
+        { level: 3, skill: '祈祷', category: '职业' },
+        { level: 6, skill: '神圣庇护', category: '职业' },
+        { level: 10, skill: '晨光祷言', category: '职业' }
+    ]
+};
+
+const PET_SKILL_PLANS = {
+    '火尾狐': [
+        { level: 1, skill: '火焰爪', category: '属性' },
+        { level: 3, skill: '小火花', category: '进阶' },
+        { level: 6, skill: '炎尾突袭', category: '进阶' },
+        { level: 10, skill: '赤焰穿林', category: '终阶' }
+    ],
+    '水泡蛙': [
+        { level: 1, skill: '水弹', category: '属性' },
+        { level: 3, skill: '水枪', category: '进阶' },
+        { level: 6, skill: '涡流护幕', category: '进阶' },
+        { level: 10, skill: '潮鸣奔涌', category: '终阶' }
+    ],
+    '叶芽兽': [
+        { level: 1, skill: '藤鞭', category: '属性' },
+        { level: 3, skill: '根系抓', category: '进阶' },
+        { level: 6, skill: '生机', category: '进阶' },
+        { level: 10, skill: '蔓生领域', category: '终阶' }
+    ],
+    '大牙鼠': [
+        { level: 1, skill: '咬住', category: '属性' },
+        { level: 3, skill: '聚气', category: '进阶' },
+        { level: 6, skill: '猛击', category: '进阶' },
+        { level: 10, skill: '乱牙突进', category: '终阶' }
+    ],
+    '咕咕鸟': [
+        { level: 1, skill: '啄击', category: '属性' },
+        { level: 3, skill: '顺风', category: '进阶' },
+        { level: 6, skill: '风切', category: '进阶' },
+        { level: 10, skill: '翔羽急坠', category: '终阶' }
+    ],
+    '电气菇': [
+        { level: 1, skill: '电击', category: '属性' },
+        { level: 3, skill: '麻痹粉', category: '进阶' },
+        { level: 6, skill: '雷霆冲', category: '进阶' },
+        { level: 10, skill: '过载孢爆', category: '终阶' }
+    ],
+    '草跳兔': [
+        { level: 1, skill: '叶刃', category: '属性' },
+        { level: 3, skill: '飞踢', category: '进阶' },
+        { level: 6, skill: '小恢复', category: '进阶' },
+        { level: 10, skill: '翠跃回旋', category: '终阶' }
+    ],
+    '灰羽鸦': [
+        { level: 1, skill: '啄击', category: '属性' },
+        { level: 3, skill: '扰乱', category: '进阶' },
+        { level: 6, skill: '俯冲', category: '进阶' },
+        { level: 10, skill: '影羽俯掠', category: '终阶' }
+    ],
+    '小甲壳虫': [
+        { level: 1, skill: '虫咬', category: '属性' },
+        { level: 3, skill: '硬壳', category: '进阶' },
+        { level: 6, skill: '甲壳冲锋', category: '进阶' },
+        { level: 10, skill: '甲壳反震', category: '终阶' }
+    ],
+    '水纹龟': [
+        { level: 1, skill: '水弹', category: '属性' },
+        { level: 3, skill: '防御姿态', category: '进阶' },
+        { level: 6, skill: '潮汐拍', category: '进阶' },
+        { level: 10, skill: '深潮护壳', category: '终阶' }
+    ],
+    '森叶鹿': [
+        { level: 1, skill: '藤刺', category: '属性' },
+        { level: 3, skill: '守护', category: '进阶' },
+        { level: 6, skill: '治愈气息', category: '进阶' },
+        { level: 10, skill: '林息回环', category: '终阶' }
+    ],
+    '森林蛛': [
+        { level: 1, skill: '毒刺', category: '属性' },
+        { level: 3, skill: '蛛网', category: '进阶' },
+        { level: 6, skill: '潜伏', category: '进阶' },
+        { level: 10, skill: '缠茧伏袭', category: '终阶' }
+    ],
+    '烈风隼': [
+        { level: 1, skill: '风刃', category: '属性' },
+        { level: 3, skill: '急袭', category: '进阶' },
+        { level: 6, skill: '暴风', category: '进阶' },
+        { level: 10, skill: '天穹裂袭', category: '终阶' }
+    ],
+    '炽尾蜥': [
+        { level: 1, skill: '火焰冲', category: '属性' },
+        { level: 3, skill: '灼烧', category: '进阶' },
+        { level: 6, skill: '炎爆', category: '进阶' },
+        { level: 10, skill: '焦土烈啮', category: '终阶' }
+    ],
+    '星纹鹿王': [
+        { level: 1, skill: '星辉冲', category: '属性' },
+        { level: 3, skill: '森之庇护', category: '进阶' },
+        { level: 6, skill: '枝影束缚', category: '进阶' },
+        { level: 10, skill: '星林圣裁', category: '终阶' }
+    ]
+};
+
+function getUnlockedSkills(plan, level = 1) {
+    return (plan || []).filter((entry) => level >= entry.level).map((entry) => entry.skill);
+}
+
+function getClassSkillsByLevel(className, level = 1) {
+    return getUnlockedSkills(CLASS_SKILL_PLANS[className], level);
+}
+
+function getPetSkillsByLevel(petName, level = 1) {
+    return getUnlockedSkills(PET_SKILL_PLANS[petName], level);
+}
+
 const CLASSES = {
-    '战士': { hp: 34, mp: 8, atk: 8, spd: 5, skills: ['重击', '盾墙', '怒吼'] },
-    '弓兵': { hp: 24, mp: 10, atk: 7, spd: 8, skills: ['连射', '刺破', '捕猎陷阱'] },
-    '魔法师': { hp: 26, mp: 16, atk: 10, spd: 4, skills: ['元素灼烧', '奥术屏障', '属性吸收'] },
-    '牧师': { hp: 28, mp: 18, atk: 5, spd: 5, skills: ['治愈', '祈祷', '神圣庇护'] }
+    '战士': { hp: 34, mp: 8, atk: 8, spd: 5, skills: getClassSkillsByLevel('战士', 1), skillPlan: CLASS_SKILL_PLANS['战士'] },
+    '弓兵': { hp: 24, mp: 10, atk: 7, spd: 8, skills: getClassSkillsByLevel('弓兵', 1), skillPlan: CLASS_SKILL_PLANS['弓兵'] },
+    '魔法师': { hp: 26, mp: 16, atk: 10, spd: 4, skills: getClassSkillsByLevel('魔法师', 1), skillPlan: CLASS_SKILL_PLANS['魔法师'] },
+    '牧师': { hp: 28, mp: 18, atk: 5, spd: 5, skills: getClassSkillsByLevel('牧师', 1), skillPlan: CLASS_SKILL_PLANS['牧师'] }
 };
 
 const PETS = {
-    '火尾狐': { type: '火', rarity: '稀有', hp: 20, mp: 12, atk: 6, spd: 6, skills: ['抓击', '火焰爪', '小火花'] },
-    '水泡蛙': { type: '水', rarity: '稀有', hp: 25, mp: 12, atk: 5, spd: 5, skills: ['撞击', '水弹', '水枪'] },
-    '叶芽兽': { type: '草', rarity: '稀有', hp: 22, mp: 13, atk: 5, spd: 4, skills: ['藤鞭', '根系抓', '生机'] },
-    '大牙鼠': { type: '普通', rarity: '普通', hp: 18, mp: 6, atk: 4, spd: 4, skills: ['咬住', '聚气', '猛击'] },
-    '咕咕鸟': { type: '飞行', rarity: '稀有', hp: 16, mp: 10, atk: 5, spd: 7, skills: ['啄击', '顺风', '风切'] },
-    '电气菇': { type: '电/草', rarity: '超稀有', hp: 18, mp: 14, atk: 6, spd: 6, skills: ['电击', '麻痹粉', '雷霆冲'] },
-    '草跳兔': { type: '草', rarity: '普通', hp: 19, mp: 8, atk: 5, spd: 6, skills: ['飞踢', '叶刃', '小恢复'] },
-    '灰羽鸦': { type: '飞行', rarity: '普通', hp: 17, mp: 8, atk: 5, spd: 6, skills: ['啄击', '扰乱', '俯冲'] },
-    '小甲壳虫': { type: '虫', rarity: '普通', hp: 22, mp: 6, atk: 4, spd: 4, skills: ['撞击', '硬壳', '虫咬'] },
-    '水纹龟': { type: '水', rarity: '普通', hp: 24, mp: 7, atk: 4, spd: 3, skills: ['水弹', '防御姿态', '潮汐拍'] },
-    '森叶鹿': { type: '草', rarity: '普通', hp: 23, mp: 8, atk: 5, spd: 4, skills: ['藤刺', '守护', '治愈气息'] },
-    '森林蛛': { type: '虫', rarity: '普通', hp: 20, mp: 9, atk: 5, spd: 5, skills: ['蛛网', '毒刺', '潜伏'] },
-    '烈风隼': { type: '飞行', rarity: '超稀有', hp: 18, mp: 12, atk: 7, spd: 8, skills: ['风刃', '急袭', '暴风'] },
-    '炽尾蜥': { type: '火', rarity: '超稀有', hp: 21, mp: 13, atk: 7, spd: 5, skills: ['火焰冲', '灼烧', '炎爆'] },
-    '星纹鹿王': { type: '草', rarity: '极品', hp: 28, mp: 18, atk: 8, spd: 6, skills: ['星辉冲', '森之庇护', '枝影束缚'], requiredBall: '究极球' }
+    '火尾狐': { type: '火', rarity: '稀有', hp: 20, mp: 12, atk: 6, spd: 6, skills: getPetSkillsByLevel('火尾狐', 1), skillPlan: PET_SKILL_PLANS['火尾狐'] },
+    '水泡蛙': { type: '水', rarity: '稀有', hp: 25, mp: 12, atk: 5, spd: 5, skills: getPetSkillsByLevel('水泡蛙', 1), skillPlan: PET_SKILL_PLANS['水泡蛙'] },
+    '叶芽兽': { type: '草', rarity: '稀有', hp: 22, mp: 13, atk: 5, spd: 4, skills: getPetSkillsByLevel('叶芽兽', 1), skillPlan: PET_SKILL_PLANS['叶芽兽'] },
+    '大牙鼠': { type: '普通', rarity: '普通', hp: 18, mp: 6, atk: 4, spd: 4, skills: getPetSkillsByLevel('大牙鼠', 1), skillPlan: PET_SKILL_PLANS['大牙鼠'] },
+    '咕咕鸟': { type: '飞行', rarity: '稀有', hp: 16, mp: 10, atk: 5, spd: 7, skills: getPetSkillsByLevel('咕咕鸟', 1), skillPlan: PET_SKILL_PLANS['咕咕鸟'] },
+    '电气菇': { type: '电/草', rarity: '超稀有', hp: 18, mp: 14, atk: 6, spd: 6, skills: getPetSkillsByLevel('电气菇', 1), skillPlan: PET_SKILL_PLANS['电气菇'] },
+    '草跳兔': { type: '草', rarity: '普通', hp: 19, mp: 8, atk: 5, spd: 6, skills: getPetSkillsByLevel('草跳兔', 1), skillPlan: PET_SKILL_PLANS['草跳兔'] },
+    '灰羽鸦': { type: '飞行', rarity: '普通', hp: 17, mp: 8, atk: 5, spd: 6, skills: getPetSkillsByLevel('灰羽鸦', 1), skillPlan: PET_SKILL_PLANS['灰羽鸦'] },
+    '小甲壳虫': { type: '虫', rarity: '普通', hp: 22, mp: 6, atk: 4, spd: 4, skills: getPetSkillsByLevel('小甲壳虫', 1), skillPlan: PET_SKILL_PLANS['小甲壳虫'] },
+    '水纹龟': { type: '水', rarity: '普通', hp: 24, mp: 7, atk: 4, spd: 3, skills: getPetSkillsByLevel('水纹龟', 1), skillPlan: PET_SKILL_PLANS['水纹龟'] },
+    '森叶鹿': { type: '草', rarity: '普通', hp: 23, mp: 8, atk: 5, spd: 4, skills: getPetSkillsByLevel('森叶鹿', 1), skillPlan: PET_SKILL_PLANS['森叶鹿'] },
+    '森林蛛': { type: '虫', rarity: '普通', hp: 20, mp: 9, atk: 5, spd: 5, skills: getPetSkillsByLevel('森林蛛', 1), skillPlan: PET_SKILL_PLANS['森林蛛'] },
+    '烈风隼': { type: '飞行', rarity: '超稀有', hp: 18, mp: 12, atk: 7, spd: 8, skills: getPetSkillsByLevel('烈风隼', 1), skillPlan: PET_SKILL_PLANS['烈风隼'] },
+    '炽尾蜥': { type: '火', rarity: '超稀有', hp: 21, mp: 13, atk: 7, spd: 5, skills: getPetSkillsByLevel('炽尾蜥', 1), skillPlan: PET_SKILL_PLANS['炽尾蜥'] },
+    '星纹鹿王': { type: '草', rarity: '极品', hp: 28, mp: 18, atk: 8, spd: 6, skills: getPetSkillsByLevel('星纹鹿王', 1), skillPlan: PET_SKILL_PLANS['星纹鹿王'], requiredBall: '究极球' }
 };
 
 const ENCOUNTER_POOLS = {
@@ -251,7 +386,7 @@ const NPC_CHARACTERS = {
         mp: 12,
         atk: 7,
         spd: 8,
-        skills: ['连射', '刺破', '捕猎陷阱'],
+        skills: getClassSkillsByLevel('弓兵', 1),
         pet: '咕咕鸟',
         description: '你幼年时最要好的玩伴，嘴上爱逞强，心里却比谁都护短。'
     }
@@ -261,60 +396,120 @@ const SKILL_DATA = {
     '重击': { damage: 7, mpCost: 0, type: '普通', desc: '沉肩发力，朴实而狠。' },
     '盾墙': { damage: 0, mpCost: 3, type: '普通', desc: '稳住架势，本回合获得额外减伤。' },
     '怒吼': { damage: 0, mpCost: 4, type: '普通', desc: '吼声振奋全队，临时提速。' },
+    '破阵冲锋': { damage: 11, mpCost: 5, type: '普通', desc: '踏步破阵，直接撕开对手前线。' },
     '连射': { damage: 8, mpCost: 0, type: '普通', desc: '连发两箭，打乱敌人节奏。' },
     '刺破': { damage: 6, mpCost: 2, type: '普通', desc: '瞄准关节与空隙，拖慢目标动作。' },
     '捕猎陷阱': { damage: 0, mpCost: 3, type: '普通', desc: '布下陷阱，为后续攻击制造机会。' },
+    '骤雨箭幕': { damage: 10, mpCost: 5, type: '飞行', desc: '箭矢像骤雨一样压向目标，几乎不给喘息。' },
     '元素灼烧': { damage: 9, mpCost: 4, desc: '借由绑定宠物的属性引燃元素。' },
     '奥术屏障': { damage: 0, mpCost: 5, desc: '用法阵撑起薄而坚韧的护壁。' },
     '属性吸收': { damage: -4, mpCost: 4, desc: '抽取逸散元素，修补自身伤势。' },
+    '共鸣过载': { damage: 12, mpCost: 6, desc: '把积蓄的法力一次性压缩后爆开，换来高额伤害。' },
     '治愈': { damage: -5, mpCost: 4, desc: '轻声祈祷，使伤口慢慢闭合。' },
     '祈祷': { damage: 0, mpCost: 5, desc: '为全队披上一层稳固的祝福。' },
     '神圣庇护': { damage: 0, mpCost: 6, desc: '在危急前留下一道最后的保险。' },
+    '晨光祷言': { damage: -8, mpCost: 6, desc: '引来柔和晨光，大幅抚平一名同伴的伤势。' },
     '抓击': { damage: 3, mpCost: 0, type: '普通', desc: '普通攻击。' },
     '火焰爪': { damage: 5, mpCost: 3, type: '火', desc: '指尖火光舔过敌人的防线。' },
     '小火花': { damage: 5, mpCost: 4, type: '火', desc: '吐出火星，有概率灼伤对手。' },
+    '炎尾突袭': { damage: 7, mpCost: 4, type: '火', desc: '燃起尾焰后短促突进，把火线甩到目标身上。' },
+    '赤焰穿林': { damage: 10, mpCost: 6, type: '火', desc: '拖着长尾烈焰穿过战场，一击烧穿防线。' },
     '撞击': { damage: 3, mpCost: 0, type: '普通', desc: '普通攻击。' },
     '水弹': { damage: 5, mpCost: 3, type: '水', desc: '凝水成珠，击打目标。' },
     '水枪': { damage: 5, mpCost: 4, type: '水', desc: '高压水流直线贯穿。' },
+    '涡流护幕': { damage: 0, mpCost: 4, type: '水', desc: '在身周卷起小型水幕，减轻即将到来的冲击。' },
+    '潮鸣奔涌': { damage: 10, mpCost: 6, type: '水', desc: '把积水压成一道奔潮，裹着轰鸣撞向敌人。' },
     '藤鞭': { damage: 4, mpCost: 3, type: '草', desc: '抽出带刺藤蔓袭击目标。' },
     '根系抓': { damage: 4, mpCost: 4, type: '草', desc: '根须缠住敌人，拖缓脚步。' },
     '生机': { damage: -3, mpCost: 3, type: '草', desc: '借草木之息回复自己。' },
+    '蔓生领域': { damage: 8, mpCost: 6, type: '草', desc: '大片藤蔓从脚下爆开，把目标困在不断挤压的绿墙里。' },
     '咬住': { damage: 2, mpCost: 0, type: '普通', desc: '普通攻击。' },
     '聚气': { damage: 0, mpCost: 2, type: '普通', desc: '收束气息，等待下一次爆发。' },
     '猛击': { damage: 6, mpCost: 0, type: '普通', desc: '普通的重型扑击。' },
+    '乱牙突进': { damage: 8, mpCost: 4, type: '普通', desc: '一边撕咬一边猛冲，凶狠到近乎不讲道理。' },
     '啄击': { damage: 3, mpCost: 2, type: '飞行', desc: '飞行属性攻击。' },
     '顺风': { damage: 0, mpCost: 3, type: '飞行', desc: '借风调整身位，提高闪避。' },
     '风切': { damage: 6, mpCost: 4, type: '飞行', desc: '将风压压成锋刃。' },
+    '翔羽急坠': { damage: 9, mpCost: 5, type: '飞行', desc: '借高空俯冲把羽锋和速度同时砸进目标。' },
     '虫咬': { damage: 4, mpCost: 2, type: '虫', desc: '虫属性攻击。' },
     '吐丝': { damage: 0, mpCost: 2, type: '虫', desc: '吐出黏丝，拖慢目标。' },
     '甲壳冲锋': { damage: 7, mpCost: 4, type: '虫', desc: '硬壳顶撞，进攻与防御并行。' },
+    '甲壳反震': { damage: 8, mpCost: 5, type: '虫', desc: '用厚甲硬吃冲击后顺势弹回，适合近身硬碰。' },
     '电击': { damage: 5, mpCost: 3, type: '电', desc: '放出短促而猛烈的电流。' },
     '麻痹粉': { damage: 0, mpCost: 4, type: '电', desc: '粉末附着神经，使行动迟滞。' },
     '雷霆冲': { damage: 8, mpCost: 5, type: '电', desc: '将电流包裹全身后猛扑。' },
+    '过载孢爆': { damage: 10, mpCost: 6, type: '电', desc: '让孢子群同时过载炸裂，把电流铺满近身空间。' },
     '飞踢': { damage: 4, mpCost: 0, type: '普通', desc: '跃起后借势踢击。' },
     '叶刃': { damage: 6, mpCost: 3, type: '草', desc: '凝出叶锋划开目标防线。' },
     '小恢复': { damage: -4, mpCost: 3, type: '草', desc: '借草息略微恢复伤势。' },
+    '翠跃回旋': { damage: 8, mpCost: 5, type: '草', desc: '高速折返后以旋身叶锋切入，是标准游击杀招。' },
     '扰乱': { damage: 0, mpCost: 2, type: '飞行', desc: '绕着目标急旋，扰乱其动作。' },
     '俯冲': { damage: 6, mpCost: 3, type: '飞行', desc: '自上而下扑击目标。' },
+    '影羽俯掠': { damage: 9, mpCost: 5, type: '飞行', desc: '借阴影隐住轮廓，再用一记急掠撕开目标。' },
     '硬壳': { damage: 0, mpCost: 2, type: '虫', desc: '收紧甲壳，准备抗下重击。' },
     '防御姿态': { damage: 0, mpCost: 2, type: '水', desc: '缩起四肢，稳稳守住阵脚。' },
     '潮汐拍': { damage: 6, mpCost: 3, type: '水', desc: '裹着潮声拍向敌人。' },
+    '深潮护壳': { damage: -6, mpCost: 5, type: '水', desc: '深吸水汽并缩入硬壳，一边回复一边稳住阵脚。' },
     '藤刺': { damage: 5, mpCost: 3, type: '草', desc: '连生的藤刺从地面突起。' },
     '守护': { damage: 0, mpCost: 3, type: '草', desc: '垂下叶幕，为自己争取喘息。' },
     '治愈气息': { damage: -5, mpCost: 4, type: '草', desc: '吐出柔和气息，修复伤势。' },
+    '林息回环': { damage: -7, mpCost: 6, type: '草', desc: '把林间生机卷成一圈回环，持续把伤势往回拉。' },
     '蛛网': { damage: 0, mpCost: 2, type: '虫', desc: '铺开黏网限制目标行动。' },
     '毒刺': { damage: 5, mpCost: 3, type: '虫', desc: '刺肢闪电般刺出。' },
     '潜伏': { damage: 0, mpCost: 3, type: '虫', desc: '沉入阴影，等待反击时机。' },
+    '缠茧伏袭': { damage: 9, mpCost: 5, type: '虫', desc: '先用丝束缚再近身穿刺，是森林蛛的终结动作。' },
     '风刃': { damage: 6, mpCost: 3, type: '飞行', desc: '卷出锐利风刃。' },
     '急袭': { damage: 7, mpCost: 3, type: '飞行', desc: '以极快速度压近目标。' },
     '暴风': { damage: 9, mpCost: 5, type: '飞行', desc: '掀起猛烈风压席卷前方。' },
+    '天穹裂袭': { damage: 11, mpCost: 6, type: '飞行', desc: '从高空垂直切落，速度快到像把天空撕开。' },
     '火焰冲': { damage: 6, mpCost: 3, type: '火', desc: '裹火撞向目标。' },
     '灼烧': { damage: 7, mpCost: 4, type: '火', desc: '留下持续发烫的灼痕。' },
     '炎爆': { damage: 9, mpCost: 5, type: '火', desc: '引爆积蓄的火元素。' },
+    '焦土烈啮': { damage: 11, mpCost: 6, type: '火', desc: '把灼热咬合力与爆燃一并压上，是纯粹的火系重击。' },
     '星辉冲': { damage: 8, mpCost: 5, type: '草', desc: '裹着星纹光屑向前冲撞。' },
     '森之庇护': { damage: -6, mpCost: 5, type: '草', desc: '调动林中生机，回复全队伤势。' },
-    '枝影束缚': { damage: 6, mpCost: 4, type: '草', desc: '枝影交错，将目标牢牢缠住。' }
+    '枝影束缚': { damage: 6, mpCost: 4, type: '草', desc: '枝影交错，将目标牢牢缠住。' },
+    '星林圣裁': { damage: 12, mpCost: 7, type: '草', desc: '把星纹与森林气息一并压下，是鹿王级别的裁断。' }
 };
+
+function buildSkillCompendium() {
+    const entries = [];
+
+    Object.keys(CLASS_SKILL_PLANS).forEach((className) => {
+        entries.push({
+            ownerType: '角色',
+            ownerName: className,
+            baseAction: '普攻',
+            baseDescription: '基础攻击，伤害约为 ATK 的 75%，不消耗 MP。',
+            skills: CLASS_SKILL_PLANS[className].map((entry) => ({
+                level: entry.level,
+                skill: entry.skill,
+                ...SKILL_DATA[entry.skill]
+            }))
+        });
+    });
+
+    Object.keys(PET_SKILL_PLANS).forEach((petName) => {
+        const pet = PETS[petName] || {};
+        entries.push({
+            ownerType: '宠物',
+            ownerName: petName,
+            baseAction: '普攻',
+            baseDescription: pet.type
+                ? `基础攻击，伤害约为 ATK 的 75%，常规出手时按 ${pet.type} 系作战。`
+                : '基础攻击，伤害约为 ATK 的 75%。',
+            skills: PET_SKILL_PLANS[petName].map((entry) => ({
+                level: entry.level,
+                skill: entry.skill,
+                ...SKILL_DATA[entry.skill]
+            }))
+        });
+    });
+
+    return entries;
+}
+
+const SKILL_COMPENDIUM = buildSkillCompendium();
 
 const NARRATIVE = {
     intro: {

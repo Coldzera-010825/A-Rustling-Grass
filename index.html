@@ -11,7 +11,7 @@
     <div id="main-menu" class="menu-screen">
         <div class="menu-container">
             <h1 class="game-title">A Rustling Grass</h1>
-            <h2 class="game-subtitle">微风草丛</h2><p id="gameVersionLabel" class="game-version">Version 0.9.3</p>
+            <h2 class="game-subtitle">微风草丛</h2><p id="gameVersionLabel" class="game-version">Version 0.10.0</p>
             <div class="menu-buttons">
                 <button class="menu-button" onclick="showNewGameMenu()">新游戏</button>
                 <button class="menu-button" onclick="showLoadGameMenu()">继续游戏</button>
@@ -42,13 +42,13 @@
     <div id="about-menu" class="menu-screen" style="display:none;">
         <div class="menu-container">
             <h2>关于游戏</h2>
-            <div class="about-text">
+            <div id="aboutContent" class="about-text">
                 <p><strong>A Rustling Grass</strong></p>
                 <p>一款文字冒险RPG游戏</p>
                 <p>选择你的职业，收服你的宠物伙伴</p>
                 <p>在微风草丛中探索与战斗</p>
                 <p>提升等级，变得更强！</p>
-                <p id="aboutVersionLabel" style="margin-top: 20px;">版本: 0.9.3</p>
+                <p id="aboutVersionLabel" style="margin-top: 20px;">版本: 0.10.0</p>
             </div>
             <button class="menu-button" onclick="showMainMenu()">返回</button>
         </div>
@@ -56,21 +56,34 @@
 
     <!-- 游戏主界面 -->
     <div id="game-container" style="display:none;">
-        <div id="left-panel">
-            <div id="logSection">
-                <h3>日志</h3>
-                <div id="logArea"></div>
+        <div id="game-toolbar">
+            <div class="toolbar-cluster">
+                <button id="returnMainMenuButton" class="toolbar-button return-button" onclick="promptReturnToMainMenu()">返回主菜单</button>
+                <span id="toolbarVersionLabel" class="toolbar-version">控制台 0.10.0</span>
             </div>
-            <div id="bottom-right">
-                <h3>行动</h3>
-                <div id="buttonsArea"></div>
+            <div class="toolbar-cluster">
+                <button class="toolbar-button" onclick="openSkillCompendium()">技能总览</button>
+                <button id="uiModeToggleButton" class="toolbar-button" onclick="toggleUiMode()">切换到作业台视图</button>
             </div>
         </div>
+        <div id="game-layout">
+            <div id="left-panel">
+                <div id="logSection">
+                    <h3>日志</h3>
+                    <div id="logArea"></div>
+                </div>
+                <div id="bottom-right">
+                    <h3>行动</h3>
+                    <div id="buttonsArea"></div>
+                    <div id="actionHelp" class="action-help">将鼠标悬停到技能按钮上，可以在这里查看说明。</div>
+                </div>
+            </div>
 
-        <div id="right-panel">
-            <div id="top-right">
-                <h3>队伍状态</h3>
-                <div id="teamInfo"></div>
+            <div id="right-panel">
+                <div id="top-right">
+                    <h3>队伍状态</h3>
+                    <div id="teamInfo"></div>
+                </div>
             </div>
         </div>
     </div>
