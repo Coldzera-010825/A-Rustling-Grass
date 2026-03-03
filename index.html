@@ -11,7 +11,7 @@
     <div id="main-menu" class="menu-screen">
         <div class="menu-container">
             <h1 class="game-title">A Rustling Grass</h1>
-            <h2 class="game-subtitle">微风草丛</h2><p id="gameVersionLabel" class="game-version">Version 0.13.4</p>
+            <h2 class="game-subtitle">微风草丛</h2><p id="gameVersionLabel" class="game-version">Version 0.14.0</p>
             <div class="menu-buttons">
                 <button class="menu-button" onclick="showNewGameMenu()">新游戏</button>
                 <button class="menu-button" onclick="showLoadGameMenu()">继续游戏</button>
@@ -48,7 +48,7 @@
                 <p>选择你的职业，收服你的宠物伙伴</p>
                 <p>在微风草丛中探索与战斗</p>
                 <p>提升等级，变得更强！</p>
-                <p id="aboutVersionLabel" style="margin-top: 20px;">版本: 0.13.4</p>
+                <p id="aboutVersionLabel" style="margin-top: 20px;">版本: 0.14.0</p>
             </div>
             <button class="menu-button" onclick="showMainMenu()">返回</button>
         </div>
@@ -59,7 +59,7 @@
         <div id="game-toolbar">
             <div class="toolbar-cluster">
                 <button id="returnMainMenuButton" class="toolbar-button return-button" onclick="promptReturnToMainMenu()">返回主菜单</button>
-                <span id="toolbarVersionLabel" class="toolbar-version">控制台 0.13.4</span>
+                <span id="toolbarVersionLabel" class="toolbar-version">控制台 0.14.0</span>
             </div>
             <div class="toolbar-cluster">
                 <button class="toolbar-button" onclick="openMonsterDex()">图鉴大全</button>
@@ -98,6 +98,32 @@
                 <button class="toolbar-button secondary-button" onclick="closeDexModal()">关闭</button>
             </div>
             <div id="dexModalContent" class="overlay-content"></div>
+        </div>
+    </div>
+
+    <div id="storeModal" class="overlay-modal" style="display:none;" onclick="handleStoreOverlayClick(event)">
+        <div class="overlay-dialog store-dialog" role="dialog" aria-modal="true" aria-labelledby="storeModalTitle">
+            <div class="overlay-header">
+                <div>
+                    <h3 id="storeModalTitle">杂货铺</h3>
+                    <div class="overlay-subtitle">浏览商品说明后再购买，道具与背包升级都在这里。</div>
+                </div>
+                <button class="toolbar-button secondary-button" onclick="closeStoreModal()">关闭</button>
+            </div>
+            <div id="storeModalContent" class="overlay-content"></div>
+        </div>
+    </div>
+
+    <div id="petMarketModal" class="overlay-modal" style="display:none;" onclick="handlePetMarketOverlayClick(event)">
+        <div class="overlay-dialog store-dialog" role="dialog" aria-modal="true" aria-labelledby="petMarketModalTitle">
+            <div class="overlay-header">
+                <div>
+                    <h3 id="petMarketModalTitle">宠物市集</h3>
+                    <div class="overlay-subtitle">按稀有度筛选可购买的风纹兽，并直接查看定位与价格。</div>
+                </div>
+                <button class="toolbar-button secondary-button" onclick="closePetMarketModal()">关闭</button>
+            </div>
+            <div id="petMarketModalContent" class="overlay-content"></div>
         </div>
     </div>
 

@@ -1,4 +1,32 @@
-﻿// ========== 战斗系统 ==========
+// ========== 战斗系统 ==========
+
+function getWildEncounterLevel(area = 'grassland') {
+    const playerLevel = Math.max(1, safeNumber(gameState.player?.level, 1));
+    if (gameState.progress?.partyMode === 'duo') {
+        const multiplier = area === 'forest' ? 2 : 1.5;
+        return Math.max(1, Math.ceil(playerLevel * multiplier));
+    }
+    return playerLevel;
+}
+
+function buildScaledPetCombatData(petName, level) {
+    const template = PETS[petName];
+    if (!template) return null;
+    const normalizedLevel = Math.max(1, safeNumber(level, 1));
+    const levelOffset = Math.max(0, normalizedLevel - 1);
+    return {
+        type: template.type,
+        rarity: template.rarity,
+        hp: template.hp + safeNumber(EXP_SYSTEM.petGrowth?.hp, 0) * levelOffset,
+        mp: template.mp + safeNumber(EXP_SYSTEM.petGrowth?.mp, 0) * levelOffset,
+        atk: template.atk + safeNumber(EXP_SYSTEM.petGrowth?.atk, 0) * levelOffset,
+        spd: template.spd + safeNumber(EXP_SYSTEM.petGrowth?.spd, 0) * levelOffset,
+        skills: getPetSkillsByLevel(petName, normalizedLevel),
+        level: normalizedLevel,
+        captureable: template.captureable !== false,
+        requiredBall: template.requiredBall || null
+    };
+}
 
 function createEnemyUnit(encounterId, options = {}) {
     if (options.isBoss && NPC_CHARACTERS[encounterId]) {
@@ -48,23 +76,33 @@ function createEnemyUnit(encounterId, options = {}) {
         throw new Error(`Unknown enemy: ${encounterId}`);
     }
 
+    const scaledLevel = options.encounterType === 'wild'
+        ? getWildEncounterLevel(options.area)
+        : Math.max(1, safeNumber(options.enemyLevel, enemyData.level || 1));
+    const resolvedData = PETS[encounterId]
+        ? buildScaledPetCombatData(encounterId, scaledLevel)
+        : {
+            ...enemyData,
+            level: scaledLevel
+        };
+
     const enemyUnits = [{
         id: `enemy-${encounterId}`,
         name: encounterId,
-        type: enemyData.type,
-        rarity: enemyData.rarity,
-        hp: enemyData.hp,
-        maxHp: enemyData.hp,
-        mp: enemyData.mp,
-        maxMp: enemyData.mp,
-        atk: enemyData.atk,
-        spd: enemyData.spd,
-        skills: [...enemyData.skills],
-        level: enemyData.level || 1,
+        type: resolvedData.type,
+        rarity: resolvedData.rarity,
+        hp: resolvedData.hp,
+        maxHp: resolvedData.hp,
+        mp: resolvedData.mp,
+        maxMp: resolvedData.mp,
+        atk: resolvedData.atk,
+        spd: resolvedData.spd,
+        skills: [...resolvedData.skills],
+        level: resolvedData.level || 1,
         isEnemy: true,
         isPet: !!PETS[encounterId],
-        captureable: enemyData.captureable !== false && !!PETS[encounterId],
-        requiredBall: enemyData.requiredBall || null,
+        captureable: resolvedData.captureable !== false && !!PETS[encounterId],
+        requiredBall: resolvedData.requiredBall || null,
         team: 'enemy'
     }];
     enemyUnits.forEach((unit) => syncUnitSkills(unit));
@@ -330,6 +368,7 @@ function showCombatOptions(unit) {
 function canAttemptCapture() {
     const cs = gameState.combatState;
     if (!cs || !cs.context.captureAllowed) return false;
+    if (gameState.petReserve.length >= getPetBagCapacity()) return false;
     return cs.enemies.some((enemy) => enemy.hp > 0 && enemy.captureable);
 }
 
@@ -454,6 +493,11 @@ function handleLinkedDefeat(unit) {
 }
 
 function openCaptureMenu(unit) {
+    if (gameState.petReserve.length >= getPetBagCapacity()) {
+        addLog(`你的宠物背包已经满了。当前容量 ${gameState.petReserve.length}/${getPetBagCapacity()}。`, 'sys');
+        showCombatOptions(unit);
+        return;
+    }
     const availableBalls = Object.keys(BALL_DATA).filter((ballName) => getInventoryCount(ballName) > 0);
     if (availableBalls.length === 0) {
         addLog('背包里已经没有可用的精灵球了。', 'sys');
@@ -503,7 +547,7 @@ function attemptCapture(unit, ballName) {
 
     if (Math.random() <= chance) {
         addLog(NARRATIVE.combat.captureSuccess, 'heal');
-        addPetToReserve(enemy.name, 'capture');
+        addPetToReserve(enemy.name, 'capture', Math.max(1, Math.floor(safeNumber(enemy.level, 1) / 2)));
         const exp = 6 + Math.floor(Math.random() * 4);
         gainExp(exp, { multiplier: getRewardProfile().expMultiplier * 0.8 });
         const moneyGain = Math.max(3, Math.floor(10 * getRewardProfile().moneyMultiplier));

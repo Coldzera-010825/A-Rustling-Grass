@@ -1,5 +1,11 @@
-const GAME_VERSION = '0.13.4';
+const GAME_VERSION = '0.14.0';
 const VERSION_HISTORY = [
+    { version: '0.14.0', date: '2026-03-03', summary: '将宠物市集改为独立弹窗，并为杂货铺和宠物市集加入分类筛选。' },
+    { version: '0.13.9', date: '2026-03-03', summary: '将杂货铺改为独立商品弹窗，为每件商品显示说明、价格与购买状态。' },
+    { version: '0.13.8', date: '2026-03-03', summary: '将图鉴大全重构为人物、风纹兽、道具三个可切换页签，并新增道具图鉴。' },
+    { version: '0.13.7', date: '2026-03-03', summary: '加入道具背包与宠物背包容量、商店背包升级，以及后备宠物放生功能。' },
+    { version: '0.13.6', date: '2026-03-03', summary: '捕获宠物将继承原野怪等级的一半，并扩充了人类与宠物消耗品清单。' },
+    { version: '0.13.5', date: '2026-03-03', summary: '将技能成长改为基于使用者自身等级，并让野怪按主角等级与队伍规模动态提升。' },
     { version: '0.13.4', date: '2026-03-03', summary: '让技能伤害与治疗随单位 ATK 和等级成长，并为失衡实验体补上图鉴技能信息。' },
     { version: '0.13.3', date: '2026-03-03', summary: '将图鉴中的属性克制区改为节点箭头式关系图，并整理宠物条目的属性展示，移除重复文案。' },
     { version: '0.13.2', date: '2026-03-03', summary: '将图鉴中的属性克制区重构为更清晰的单向箭头图，替换原先较杂乱的环形箭头布局。' },
@@ -58,24 +64,62 @@ const BALL_DATA = {
 
 const HUMAN_ITEM_DATA = {
     '绷带': { price: 8, description: '人类专用，恢复主角 12 HP。', hp: 12, mp: 0 },
-    '灵息药': { price: 10, description: '人类专用，恢复主角 8 MP。', hp: 0, mp: 8 }
+    '灵息药': { price: 10, description: '人类专用，恢复主角 8 MP。', hp: 0, mp: 8 },
+    '急救包': { price: 16, description: '人类专用，恢复主角 22 HP。', hp: 22, mp: 0 },
+    '清醒滴露': { price: 18, description: '人类专用，恢复主角 16 MP。', hp: 0, mp: 16 },
+    '旅行口粮': { price: 14, description: '人类专用，恢复主角 10 HP 和 6 MP。', hp: 10, mp: 6 },
+    '应急针剂': { price: 28, description: '人类专用，恢复主角 32 HP。', hp: 32, mp: 0 },
+    '风纹饮': { price: 32, description: '人类专用，恢复主角 10 HP 和 18 MP。', hp: 10, mp: 18 }
 };
 
 const PET_ITEM_DATA = {
     '树果': { price: 6, description: '宠物专用，恢复主宠 10 HP。', hp: 10, mp: 0 },
-    '灵芽露': { price: 9, description: '宠物专用，恢复主宠 8 MP。', hp: 0, mp: 8 }
+    '灵芽露': { price: 9, description: '宠物专用，恢复主宠 8 MP。', hp: 0, mp: 8 },
+    '甜浆果': { price: 14, description: '宠物专用，恢复主宠 18 HP。', hp: 18, mp: 0 },
+    '清露团': { price: 16, description: '宠物专用，恢复主宠 14 MP。', hp: 0, mp: 14 },
+    '活力籽': { price: 18, description: '宠物专用，恢复主宠 12 HP 和 8 MP。', hp: 12, mp: 8 },
+    '共鸣果冻': { price: 30, description: '宠物专用，恢复主宠 28 HP。', hp: 28, mp: 0 },
+    '森息糖': { price: 34, description: '宠物专用，恢复主宠 12 HP 和 18 MP。', hp: 12, mp: 18 }
+};
+const BAG_UPGRADES = {
+    item: {
+        base: { tier: '普通', capacity: 60 },
+        options: [
+            { name: '大型道具背包', price: 120, tier: '大型', capacity: 100, description: '将道具背包容量提升到 100。' },
+            { name: '超大型道具背包', price: 240, tier: '超大型', capacity: 160, description: '将道具背包容量提升到 160。' }
+        ]
+    },
+    pet: {
+        base: { tier: '普通', capacity: 6 },
+        options: [
+            { name: '大型宠物背包', price: 180, tier: '大型', capacity: 10, description: '将后备宠物容量提升到 10。' },
+            { name: '超大型宠物背包', price: 320, tier: '超大型', capacity: 14, description: '将后备宠物容量提升到 14。' }
+        ]
+    }
 };
 const SHOP_ITEMS = [
     { name: '绷带', price: HUMAN_ITEM_DATA['绷带'].price, description: HUMAN_ITEM_DATA['绷带'].description },
     { name: '灵息药', price: HUMAN_ITEM_DATA['灵息药'].price, description: HUMAN_ITEM_DATA['灵息药'].description },
+    { name: '急救包', price: HUMAN_ITEM_DATA['急救包'].price, description: HUMAN_ITEM_DATA['急救包'].description },
+    { name: '清醒滴露', price: HUMAN_ITEM_DATA['清醒滴露'].price, description: HUMAN_ITEM_DATA['清醒滴露'].description },
+    { name: '旅行口粮', price: HUMAN_ITEM_DATA['旅行口粮'].price, description: HUMAN_ITEM_DATA['旅行口粮'].description },
+    { name: '应急针剂', price: HUMAN_ITEM_DATA['应急针剂'].price, description: HUMAN_ITEM_DATA['应急针剂'].description },
+    { name: '风纹饮', price: HUMAN_ITEM_DATA['风纹饮'].price, description: HUMAN_ITEM_DATA['风纹饮'].description },
     { name: '树果', price: PET_ITEM_DATA['树果'].price, description: PET_ITEM_DATA['树果'].description },
     { name: '灵芽露', price: PET_ITEM_DATA['灵芽露'].price, description: PET_ITEM_DATA['灵芽露'].description },
+    { name: '甜浆果', price: PET_ITEM_DATA['甜浆果'].price, description: PET_ITEM_DATA['甜浆果'].description },
+    { name: '清露团', price: PET_ITEM_DATA['清露团'].price, description: PET_ITEM_DATA['清露团'].description },
+    { name: '活力籽', price: PET_ITEM_DATA['活力籽'].price, description: PET_ITEM_DATA['活力籽'].description },
+    { name: '共鸣果冻', price: PET_ITEM_DATA['共鸣果冻'].price, description: PET_ITEM_DATA['共鸣果冻'].description },
+    { name: '森息糖', price: PET_ITEM_DATA['森息糖'].price, description: PET_ITEM_DATA['森息糖'].description },
     { name: '普通球', price: BALL_DATA['普通球'].price, description: BALL_DATA['普通球'].description },
     { name: '中级球', price: BALL_DATA['中级球'].price, description: BALL_DATA['中级球'].description },
     { name: '高级球', price: BALL_DATA['高级球'].price, description: BALL_DATA['高级球'].description },
     { name: '特级球', price: BALL_DATA['特级球'].price, description: BALL_DATA['特级球'].description },
     { name: '大师球', price: BALL_DATA['大师球'].price, description: BALL_DATA['大师球'].description },
-    { name: '究极球', price: BALL_DATA['究极球'].price, description: BALL_DATA['究极球'].description }
+    { name: '究极球', price: BALL_DATA['究极球'].price, description: BALL_DATA['究极球'].description },
+    ...BAG_UPGRADES.item.options.map((entry) => ({ ...entry, kind: 'upgrade', upgradeType: 'item' })),
+    ...BAG_UPGRADES.pet.options.map((entry) => ({ ...entry, kind: 'upgrade', upgradeType: 'pet' }))
 ];
 
 const PET_MARKET = [
@@ -168,6 +212,12 @@ function createInitialProgress() {
             chief_patrol: 'available',
             zhangsan_fruit: 'available',
             lisi_capture: 'available'
+        },
+        storage: {
+            itemBagTier: BAG_UPGRADES.item.base.tier,
+            itemBagCapacity: BAG_UPGRADES.item.base.capacity,
+            petBagTier: BAG_UPGRADES.pet.base.tier,
+            petBagCapacity: BAG_UPGRADES.pet.base.capacity
         },
         encyclopedia: {
             obtained: false,

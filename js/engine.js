@@ -7,6 +7,13 @@ let actionHelpArea;
 let uiModeToggleButton;
 let dexModal;
 let dexModalContent;
+let storeModal;
+let storeModalContent;
+let petMarketModal;
+let petMarketModalContent;
+let currentDexTab = 'pets';
+let currentStoreFilter = 'all';
+let currentPetMarketFilter = 'all';
 let currentSaveSlot = null;
 let logQueue = [];
 let isLogProcessing = false;
@@ -82,9 +89,24 @@ function createInventoryTemplate() {
     };
 }
 
+function getItemBagCapacity(progress = gameState.progress) {
+    return safeNumber(progress?.storage?.itemBagCapacity, BAG_UPGRADES.item.base.capacity);
+}
+
+function getPetBagCapacity(progress = gameState.progress) {
+    return safeNumber(progress?.storage?.petBagCapacity, BAG_UPGRADES.pet.base.capacity);
+}
+
+function getItemBagLoad(inventory = gameState.inventory) {
+    const humanLoad = Object.values(inventory?.human || {}).reduce((sum, count) => sum + safeNumber(count, 0), 0);
+    const petLoad = Object.values(inventory?.pet || {}).reduce((sum, count) => sum + safeNumber(count, 0), 0);
+    return humanLoad + petLoad;
+}
+
 function getItemBucket(itemName) {
     if (BALL_DATA[itemName]) return 'human';
-    if (['树果', '灵芽露'].includes(itemName)) return 'pet';
+    if (PET_ITEM_DATA[itemName]) return 'pet';
+    if (HUMAN_ITEM_DATA[itemName]) return 'human';
     if (['带齿铁片', '溪桥护符', '孤行者徽记', '星光碎片', '怪兽图鉴', '实验门卡'].includes(itemName)) return 'special';
     return 'human';
 }
@@ -99,7 +121,7 @@ function normalizeInventory(rawInventory) {
         return inventory;
     }
     Object.keys(rawInventory).forEach((itemName) => {
-        addItemToInventory(inventory, itemName, rawInventory[itemName]);
+        addItemToInventory(inventory, itemName, rawInventory[itemName], { force: true });
     });
     return inventory;
 }
@@ -109,13 +131,28 @@ function getInventoryCount(itemName) {
     return gameState.inventory[bucket][itemName] || 0;
 }
 
-function addItemToInventory(targetInventory, itemName, amount = 1) {
+function addItemToInventory(targetInventory, itemName, amount = 1, options = {}) {
     const bucket = getItemBucket(itemName);
-    targetInventory[bucket][itemName] = (targetInventory[bucket][itemName] || 0) + amount;
+    const safeAmount = Math.max(0, safeNumber(amount, 0));
+    if (safeAmount <= 0) return 0;
+    if (bucket === 'special' || options.force) {
+        targetInventory[bucket][itemName] = (targetInventory[bucket][itemName] || 0) + safeAmount;
+        return safeAmount;
+    }
+    const capacity = safeNumber(options.capacity, getItemBagCapacity());
+    const currentLoad = getItemBagLoad(targetInventory);
+    const allowed = Math.max(0, Math.min(safeAmount, capacity - currentLoad));
+    if (allowed <= 0) return 0;
+    targetInventory[bucket][itemName] = (targetInventory[bucket][itemName] || 0) + allowed;
+    return allowed;
 }
 
 function addInventoryItem(itemName, amount = 1) {
-    addItemToInventory(gameState.inventory, itemName, amount);
+    const added = addItemToInventory(gameState.inventory, itemName, amount);
+    if (added > 0) {
+        markItemSeen(itemName);
+    }
+    return added;
 }
 
 function removeInventoryItem(itemName, amount = 1) {
@@ -181,14 +218,14 @@ function getReferenceUnitPreview(unit, level = 1) {
         } : { atk: 0, level: normalizedLevel };
     }
     if (unit?.isPet && unit?.name) {
-        const pet = MONSTERS[unit.name];
+        const pet = PETS[unit.name];
         return pet ? {
             atk: safeNumber(pet.atk, 0) + safeNumber(EXP_SYSTEM.petGrowth?.atk, 0) * Math.max(0, normalizedLevel - 1),
             level: normalizedLevel
         } : { atk: 0, level: normalizedLevel };
     }
     if (unit?.class) {
-        const role = PLAYER_CLASSES[unit.class];
+        const role = CLASSES[unit.class];
         const growth = EXP_SYSTEM.playerGrowth?.[unit.class];
         return role ? {
             atk: safeNumber(role.atk, 0) + safeNumber(growth?.atk, 0) * Math.max(0, normalizedLevel - 1),
@@ -204,11 +241,10 @@ function getReferenceUnitPreview(unit, level = 1) {
 function getScaledSkillAmount(skill, unit) {
     if (!skill || !unit || safeNumber(skill.damage, 0) === 0) return null;
     const level = Math.max(1, safeNumber(unit.level, 1));
-    const atk = Math.max(0, safeNumber(unit.atk, 0));
     if (skill.damage > 0) {
-        return Math.max(1, Math.floor(skill.damage + atk * 0.55 + Math.max(0, level - 1) * 0.35));
+        return Math.max(1, Math.floor(skill.damage + Math.max(0, level - 1) * (0.6 + skill.damage * 0.08)));
     }
-    return Math.max(1, Math.floor(Math.abs(skill.damage) + atk * 0.25 + Math.max(0, level - 1) * 0.2));
+    return Math.max(1, Math.floor(Math.abs(skill.damage) + Math.max(0, level - 1) * (0.45 + Math.abs(skill.damage) * 0.06)));
 }
 
 function getSkillDescription(skillName, unit = null) {
@@ -218,8 +254,8 @@ function getSkillDescription(skillName, unit = null) {
     if (skill.type) parts.push(`属性：${skill.type}`);
     parts.push(`MP：${safeNumber(skill.mpCost, 0)}`);
     const scaledAmount = getScaledSkillAmount(skill, unit);
-    if (skill.damage > 0) parts.push(scaledAmount !== null ? `效果：造成约 ${scaledAmount} 点伤害（基础 ${skill.damage}）` : `效果：基础伤害 ${skill.damage}，会随等级与 ATK 成长`);
-    if (skill.damage < 0) parts.push(scaledAmount !== null ? `效果：恢复约 ${scaledAmount} 点生命（基础 ${Math.abs(skill.damage)}）` : `效果：基础恢复 ${Math.abs(skill.damage)}，会随等级与 ATK 成长`);
+    if (skill.damage > 0) parts.push(scaledAmount !== null ? `效果：造成约 ${scaledAmount} 点伤害（基础 ${skill.damage}）` : `效果：基础伤害 ${skill.damage}，会随自身等级成长`);
+    if (skill.damage < 0) parts.push(scaledAmount !== null ? `效果：恢复约 ${scaledAmount} 点生命（基础 ${Math.abs(skill.damage)}）` : `效果：基础恢复 ${Math.abs(skill.damage)}，会随自身等级成长`);
     if (skill.damage === 0) parts.push('效果：功能型技能');
     parts.push(skill.desc);
     return parts.join('｜');
@@ -249,11 +285,13 @@ function ensureEncyclopediaState(progress = gameState.progress) {
         progress.encyclopedia = {
             obtained: false,
             seenPets: {},
-            seenCharacters: {}
+            seenCharacters: {},
+            seenItems: {}
         };
     }
     if (!progress.encyclopedia.seenPets) progress.encyclopedia.seenPets = {};
     if (!progress.encyclopedia.seenCharacters) progress.encyclopedia.seenCharacters = {};
+    if (!progress.encyclopedia.seenItems) progress.encyclopedia.seenItems = {};
     if (getInventoryCount('怪兽图鉴') > 0) {
         progress.encyclopedia.obtained = true;
     }
@@ -272,6 +310,11 @@ function markPetSeen(petName) {
 function markCharacterSeen(entryId) {
     if (!entryId) return;
     ensureEncyclopediaState().seenCharacters[entryId] = true;
+}
+
+function markItemSeen(itemName) {
+    if (!itemName) return;
+    ensureEncyclopediaState().seenItems[itemName] = true;
 }
 
 function syncEncyclopediaDiscoveries() {
@@ -298,6 +341,29 @@ function syncEncyclopediaDiscoveries() {
     if (gameState.progress?.flags?.chapter1Completed) {
         markCharacterSeen('inner_aberration');
     }
+    Object.keys(gameState.inventory?.human || {}).forEach((itemName) => {
+        if (safeNumber(gameState.inventory.human[itemName], 0) > 0) markItemSeen(itemName);
+    });
+    Object.keys(gameState.inventory?.pet || {}).forEach((itemName) => {
+        if (safeNumber(gameState.inventory.pet[itemName], 0) > 0) markItemSeen(itemName);
+    });
+    Object.keys(gameState.inventory?.special || {}).forEach((itemName) => {
+        if (safeNumber(gameState.inventory.special[itemName], 0) > 0) markItemSeen(itemName);
+    });
+    if (safeNumber(gameState.progress?.storage?.itemBagCapacity, 0) > BAG_UPGRADES.item.base.capacity) {
+        BAG_UPGRADES.item.options.forEach((entry) => {
+            if (safeNumber(gameState.progress.storage.itemBagCapacity, 0) >= safeNumber(entry.capacity, 0)) {
+                markItemSeen(entry.name);
+            }
+        });
+    }
+    if (safeNumber(gameState.progress?.storage?.petBagCapacity, 0) > BAG_UPGRADES.pet.base.capacity) {
+        BAG_UPGRADES.pet.options.forEach((entry) => {
+            if (safeNumber(gameState.progress.storage.petBagCapacity, 0) >= safeNumber(entry.capacity, 0)) {
+                markItemSeen(entry.name);
+            }
+        });
+    }
 }
 
 function grantEncyclopedia() {
@@ -319,9 +385,38 @@ function closeDexModal() {
     dexModal.style.display = 'none';
 }
 
+function closeStoreModal() {
+    if (!storeModal) return;
+    storeModal.style.display = 'none';
+}
+
+function closePetMarketModal() {
+    if (!petMarketModal) return;
+    petMarketModal.style.display = 'none';
+}
+
+function setDexTab(tabName = 'pets') {
+    currentDexTab = ['pets', 'characters', 'items'].includes(tabName) ? tabName : 'pets';
+    if (dexModal && dexModal.style.display === 'flex') {
+        openMonsterDex();
+    }
+}
+
 function handleDexOverlayClick(event) {
     if (event.target === dexModal) {
         closeDexModal();
+    }
+}
+
+function handleStoreOverlayClick(event) {
+    if (event.target === storeModal) {
+        closeStoreModal();
+    }
+}
+
+function handlePetMarketOverlayClick(event) {
+    if (event.target === petMarketModal) {
+        closePetMarketModal();
     }
 }
 
@@ -779,17 +874,20 @@ function updateNormalUI() {
     const humanItems = Object.keys(gameState.inventory.human).filter((item) => gameState.inventory.human[item] > 0).map((item) => ({ name: item, count: gameState.inventory.human[item] }));
     const petItems = Object.keys(gameState.inventory.pet).filter((item) => gameState.inventory.pet[item] > 0).map((item) => ({ name: item, count: gameState.inventory.pet[item] }));
     const specialItems = Object.keys(gameState.inventory.special).filter((item) => gameState.inventory.special[item] > 0).map((item) => ({ name: item, count: gameState.inventory.special[item] }));
+    const itemBagLoad = getItemBagLoad();
+    const itemBagCapacity = getItemBagCapacity();
+    const petBagCapacity = getPetBagCapacity();
 
     html += `
         <section class="status-card neutral compact-card">
-            <div class="status-card-header"><div class="status-title">背包</div></div>
+            <div class="status-card-header"><div class="status-title">道具背包</div><span class="status-pill level">${itemBagLoad}/${itemBagCapacity}</span></div>
             ${renderInventoryGroup('人类道具', 'human', humanItems)}
             ${renderInventoryGroup('宠物道具', 'pet', petItems)}
             ${renderInventoryGroup('特殊物品', 'special', specialItems)}
         </section>
     `;
 
-    html += '<section class="status-card neutral compact-card"><div class="status-card-header"><div class="status-title">后备宠物</div></div>';
+    html += `<section class="status-card neutral compact-card"><div class="status-card-header"><div class="status-title">后备宠物</div><span class="status-pill level">${gameState.petReserve.length}/${petBagCapacity}</span></div>`;
     if (gameState.petReserve.length === 0) {
         html += '<div class="inventory-empty">暂无</div>';
     } else {
@@ -884,8 +982,10 @@ function selectPet(petName) {
     runAfterLogs(() => enterHub(), 120);
 }
 
-function createPetInstance(petName) {
+function createPetInstance(petName, level = 1) {
     const template = PETS[petName];
+    const normalizedLevel = Math.max(1, safeNumber(level, 1));
+    const levelOffset = Math.max(0, normalizedLevel - 1);
     const uid = `pet-${gameState.nextPetUid}`;
     gameState.nextPetUid += 1;
     const pet = {
@@ -894,14 +994,14 @@ function createPetInstance(petName) {
         name: petName,
         type: template.type,
         rarity: template.rarity,
-        hp: template.hp,
-        maxHp: template.hp,
-        mp: template.mp,
-        maxMp: template.mp,
-        atk: template.atk,
-        spd: template.spd,
+        hp: template.hp + safeNumber(EXP_SYSTEM.petGrowth?.hp, 0) * levelOffset,
+        maxHp: template.hp + safeNumber(EXP_SYSTEM.petGrowth?.hp, 0) * levelOffset,
+        mp: template.mp + safeNumber(EXP_SYSTEM.petGrowth?.mp, 0) * levelOffset,
+        maxMp: template.mp + safeNumber(EXP_SYSTEM.petGrowth?.mp, 0) * levelOffset,
+        atk: template.atk + safeNumber(EXP_SYSTEM.petGrowth?.atk, 0) * levelOffset,
+        spd: template.spd + safeNumber(EXP_SYSTEM.petGrowth?.spd, 0) * levelOffset,
         skills: [],
-        level: 1,
+        level: normalizedLevel,
         exp: 0,
         isPet: true,
         isEnemy: false,
@@ -998,7 +1098,7 @@ function getHubButtons() {
             buttons.push({ text: '进入呢喃森林', action: exploreForest });
         }
         buttons.push({ text: '使用道具', action: openItemMenu });
-        buttons.push({ text: '更换主宠', action: openPetSwitchMenu, disabled: gameState.petReserve.length === 0 });
+        buttons.push({ text: '管理宠物', action: openPetManagementMenu });
     }
 
     if (flags.linxiaoDefeated && !flags.linxiaoChoiceResolved) {
@@ -1249,6 +1349,44 @@ function openMonsterDex() {
 
     syncEncyclopediaDiscoveries();
     const encyclopedia = ensureEncyclopediaState();
+    const unlockedCount = Object.keys(encyclopedia.seenPets).length + Object.keys(encyclopedia.seenCharacters).length + Object.keys(encyclopedia.seenItems).length;
+
+    const buildItemEncyclopediaEntries = () => {
+        const specialGuide = {
+            '怪兽图鉴': { category: '特殊物品', description: '获得后可以开启图鉴大全，并持续记录风纹兽、人物与道具资料。', effect: '图鉴权限', source: '林晓试炼' },
+            '带齿铁片': { category: '特殊物品', description: '从桥边线索中取得的金属碎片，是实验室存在的重要旁证。', effect: '剧情线索', source: '桥边异响支线' },
+            '溪桥护符': { category: '特殊物品', description: '村长给出的简易护符，象征你替村里查清了桥边异响。', effect: '支线纪念', source: '桥边异响支线' },
+            '孤行者徽记': { category: '特殊物品', description: '独自前行时获得的徽记，代表你选择单人承压。', effect: '剧情纪念', source: '林晓分歧奖励' },
+            '星光碎片': { category: '特殊物品', description: '失衡实验体倒下后留下的核心碎片，指向更大的风纹异常。', effect: '章节关键物', source: '第一章结尾' },
+            '实验门卡': { category: '特殊物品', description: '从幻梦乐园代理人处夺来的裂痕门卡，用于打开实验室外门。', effect: '门禁权限', source: '森林守门战' }
+        };
+        const entries = [];
+        Object.keys(BALL_DATA).forEach((name) => {
+            entries.push({ key: name, code: `物品 ${String(entries.length + 1).padStart(2, '0')}`, category: '捕获球', description: BALL_DATA[name].description, effect: `起始捕获率 ${Math.round(BALL_DATA[name].startRate * 100)}%`, price: BALL_DATA[name].price });
+        });
+        Object.keys(HUMAN_ITEM_DATA).forEach((name) => {
+            const item = HUMAN_ITEM_DATA[name];
+            const effect = [];
+            if (item.hp) effect.push(`HP +${item.hp}`);
+            if (item.mp) effect.push(`MP +${item.mp}`);
+            entries.push({ key: name, code: `物品 ${String(entries.length + 1).padStart(2, '0')}`, category: '人类道具', description: item.description, effect: effect.join(' / '), price: item.price });
+        });
+        Object.keys(PET_ITEM_DATA).forEach((name) => {
+            const item = PET_ITEM_DATA[name];
+            const effect = [];
+            if (item.hp) effect.push(`HP +${item.hp}`);
+            if (item.mp) effect.push(`MP +${item.mp}`);
+            entries.push({ key: name, code: `物品 ${String(entries.length + 1).padStart(2, '0')}`, category: '宠物道具', description: item.description, effect: effect.join(' / '), price: item.price });
+        });
+        [...BAG_UPGRADES.item.options, ...BAG_UPGRADES.pet.options].forEach((item) => {
+            entries.push({ key: item.name, code: `物品 ${String(entries.length + 1).padStart(2, '0')}`, category: '背包升级', description: item.description, effect: `容量提升到 ${item.capacity}`, price: item.price });
+        });
+        Object.keys(specialGuide).forEach((name) => {
+            const item = specialGuide[name];
+            entries.push({ key: name, code: `物品 ${String(entries.length + 1).padStart(2, '0')}`, category: item.category, description: item.description, effect: item.effect, source: item.source, price: null });
+        });
+        return entries;
+    };
 
     const renderPetEntry = (entry) => {
         const unlocked = !!encyclopedia.seenPets[entry.key];
@@ -1288,6 +1426,34 @@ function openMonsterDex() {
                 <div class="dex-body">${entry.note}</div>
                 <div class="dex-subtitle">技能记录</div>
                 ${skillsHtml}
+            </div>
+        `;
+    };
+
+    const renderItemEntry = (entry) => {
+        const unlocked = !!encyclopedia.seenItems[entry.key];
+        if (!unlocked) {
+            return `
+                <div class="dex-entry locked">
+                    <div class="dex-entry-head">
+                        <span class="dex-code">${entry.code}</span>
+                        <strong>???</strong>
+                    </div>
+                    <div class="dex-meta-line">分类：未记录</div>
+                    <div class="dex-body">尚未获得该道具。持有、购买或通过剧情得到后会解锁这一页。</div>
+                </div>
+            `;
+        }
+        return `
+            <div class="dex-entry">
+                <div class="dex-entry-head">
+                    <span class="dex-code">${entry.code}</span>
+                    <strong>${entry.key}</strong>
+                    <span class="status-pill level">${entry.category}</span>
+                </div>
+                <div class="dex-meta-line">${entry.price !== null && entry.price !== undefined ? `价格：${entry.price} ${CURRENCY_NAME}` : '价格：不可购买'}${entry.source ? `｜来源：${entry.source}` : ''}</div>
+                <div class="dex-body">${entry.description}</div>
+                <div class="dex-stats">效果：${entry.effect || '记录型物品'}</div>
             </div>
         `;
     };
@@ -1372,31 +1538,50 @@ function openMonsterDex() {
         `;
     }).join('');
 
+    const tabs = [
+        { key: 'characters', label: '人物角色图鉴' },
+        { key: 'pets', label: '风纹兽图鉴' },
+        { key: 'items', label: '道具图鉴' }
+    ];
+    const itemEntries = buildItemEncyclopediaEntries();
     dexModalContent.innerHTML = `
         <div class="status-version">版本 ${getCurrentGameVersion()}</div>
         <section class="status-card neutral dex-card">
             <div class="status-card-header">
                 <div>
                     <div class="status-title">图鉴大全</div>
-                    <div class="status-subtitle">技能、稀有度、人物定位和遭遇记录都整合在这里。</div>
+                    <div class="status-subtitle">人物、风纹兽和道具分开整理，按页签切换浏览。</div>
                 </div>
-                <span class="status-pill duo">已解锁 ${Object.keys(encyclopedia.seenPets).length + Object.keys(encyclopedia.seenCharacters).length}</span>
+                <span class="status-pill duo">已解锁 ${unlockedCount}</span>
             </div>
-            <div class="dex-section">
-                <div class="dex-section-title">稀有度说明</div>
-                ${rarityHtml}
+            <div class="dex-tabs">
+                ${tabs.map((tab) => `<button class="dex-tab ${currentDexTab === tab.key ? 'active' : ''}" onclick="setDexTab('${tab.key}')">${tab.label}</button>`).join('')}
             </div>
-            <div class="dex-section">
-                <div class="dex-section-title">属性克制图</div>
-                ${typeChartHtml}
+            <div class="dex-panel ${currentDexTab === 'characters' ? 'active' : ''}">
+                <div class="dex-section">
+                    <div class="dex-section-title">人物角色图鉴</div>
+                    ${ENCYCLOPEDIA_CHARACTER_ENTRIES.map(renderCharacterEntry).join('')}
+                </div>
             </div>
-            <div class="dex-section">
-                <div class="dex-section-title">宠物图鉴</div>
-                ${ENCYCLOPEDIA_PET_ENTRIES.map(renderPetEntry).join('')}
+            <div class="dex-panel ${currentDexTab === 'pets' ? 'active' : ''}">
+                <div class="dex-section">
+                    <div class="dex-section-title">稀有度说明</div>
+                    ${rarityHtml}
+                </div>
+                <div class="dex-section">
+                    <div class="dex-section-title">属性克制图</div>
+                    ${typeChartHtml}
+                </div>
+                <div class="dex-section">
+                    <div class="dex-section-title">风纹兽图鉴</div>
+                    ${ENCYCLOPEDIA_PET_ENTRIES.map(renderPetEntry).join('')}
+                </div>
             </div>
-            <div class="dex-section">
-                <div class="dex-section-title">人物与敌对单位</div>
-                ${ENCYCLOPEDIA_CHARACTER_ENTRIES.map(renderCharacterEntry).join('')}
+            <div class="dex-panel ${currentDexTab === 'items' ? 'active' : ''}">
+                <div class="dex-section">
+                    <div class="dex-section-title">道具图鉴</div>
+                    ${itemEntries.map(renderItemEntry).join('')}
+                </div>
             </div>
         </section>
     `;
@@ -1404,7 +1589,7 @@ function openMonsterDex() {
 }
 
 function openItemMenu() {
-    addLog('你翻开行囊，检查人类用品和宠物用品的余量。', 'sys');
+    addLog(`你翻开行囊，检查人类用品和宠物用品的余量。当前道具背包 ${getItemBagLoad()}/${getItemBagCapacity()}。`, 'sys');
     setButtons([
         { text: '使用人类道具', action: openHumanItemMenu },
         { text: '使用宠物道具', action: openPetItemMenu },
@@ -1826,39 +2011,206 @@ function claimQuestReward(questId) {
 
 function openGeneralStore() {
     addLog(NARRATIVE.village.storeGreeting, 'dialogue');
-    const buttons = SHOP_ITEMS.map((item) => ({
-        text: `${item.name} - ${item.price} ${CURRENCY_NAME}`,
-        action: () => buyStoreItem(item.name)
-    }));
-    buttons.push({ text: '离开杂货铺', action: enterHub });
-    setButtons(buttons);
+    renderGeneralStoreModal();
+}
+
+function renderGeneralStoreModal() {
+    if (!storeModal || !storeModalContent) return;
+    const itemBagLoad = getItemBagLoad();
+    const itemBagCapacity = getItemBagCapacity();
+    const filters = [
+        { key: 'all', label: '全部' },
+        { key: 'human', label: '人类道具' },
+        { key: 'pet', label: '宠物道具' },
+        { key: 'balls', label: '捕获球' },
+        { key: 'upgrade', label: '背包升级' }
+    ];
+    const visibleItems = SHOP_ITEMS.filter((item) => {
+        if (currentStoreFilter === 'all') return true;
+        if (currentStoreFilter === 'upgrade') return item.kind === 'upgrade';
+        if (currentStoreFilter === 'balls') return !!BALL_DATA[item.name];
+        return getItemBucket(item.name) === currentStoreFilter;
+    });
+    const cardHtml = visibleItems.map((item) => {
+        const isUpgrade = item.kind === 'upgrade';
+        const capacityKey = item.upgradeType === 'item' ? 'itemBagCapacity' : 'petBagCapacity';
+        const currentCapacity = safeNumber(gameState.progress.storage?.[capacityKey], 0);
+        const alreadyOwned = isUpgrade && currentCapacity >= safeNumber(item.capacity, 0);
+        const itemBucket = getItemBucket(item.name);
+        const bagFull = !isUpgrade && itemBucket !== 'special' && itemBagLoad >= itemBagCapacity;
+        const notEnoughMoney = gameState.money < item.price;
+        const disabled = alreadyOwned || bagFull || notEnoughMoney;
+        const meta = isUpgrade
+            ? `${item.upgradeType === 'item' ? '道具背包' : '宠物背包'}｜提升到 ${item.capacity}`
+            : `${itemBucket === 'pet' ? '宠物道具' : '人类道具 / 杂货'}｜价格 ${item.price} ${CURRENCY_NAME}`;
+        const statusText = alreadyOwned
+            ? '已拥有更高或相同规格'
+            : bagFull
+                ? `道具背包已满 ${itemBagLoad}/${itemBagCapacity}`
+                : notEnoughMoney
+                    ? `需要 ${item.price} ${CURRENCY_NAME}`
+                    : `购买后剩余 ${Math.max(0, gameState.money - item.price)} ${CURRENCY_NAME}`;
+        return `
+            <div class="store-card ${disabled ? 'disabled' : ''}">
+                <div class="store-card-head">
+                    <strong>${item.name}</strong>
+                    <span class="status-pill ${isUpgrade ? 'level' : 'money'}">${item.price} ${CURRENCY_NAME}</span>
+                </div>
+                <div class="store-card-meta">${meta}</div>
+                <div class="store-card-body">${item.description}</div>
+                <div class="store-card-foot">
+                    <span class="store-card-status">${statusText}</span>
+                    <button class="store-buy-button" onclick="buyStoreItem('${item.name}')" ${disabled ? 'disabled' : ''}>购买</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    storeModalContent.innerHTML = `
+        <div class="status-version">${CURRENCY_NAME} ${formatValue(gameState.money)}｜道具背包 ${itemBagLoad}/${itemBagCapacity}</div>
+        <section class="status-card neutral dex-card">
+            <div class="status-card-header">
+                <div>
+                    <div class="status-title">货架清单</div>
+                    <div class="status-subtitle">每张商品卡都会直接显示用途、价格与当前是否可购买。</div>
+                </div>
+            </div>
+            <div class="store-filters">
+                ${filters.map((filter) => `<button class="store-filter-tab ${currentStoreFilter === filter.key ? 'active' : ''}" onclick="setStoreFilter('${filter.key}')">${filter.label}</button>`).join('')}
+            </div>
+            <div class="store-grid">
+                ${cardHtml}
+            </div>
+        </section>
+    `;
+    storeModal.style.display = 'flex';
+}
+
+function setStoreFilter(filterKey = 'all') {
+    currentStoreFilter = ['all', 'human', 'pet', 'balls', 'upgrade'].includes(filterKey) ? filterKey : 'all';
+    renderGeneralStoreModal();
 }
 
 function buyStoreItem(itemName) {
     const item = SHOP_ITEMS.find((entry) => entry.name === itemName);
     if (!item) return;
+    if (item.kind === 'upgrade') {
+        buyBagUpgrade(item);
+        return;
+    }
     if (gameState.money < item.price) {
         addLog(`你的${CURRENCY_NAME}不够。`, 'sys');
-        openGeneralStore();
+        renderGeneralStoreModal();
+        return;
+    }
+
+    if (getItemBucket(itemName) !== 'special' && getItemBagLoad() >= getItemBagCapacity()) {
+        addLog(`你的道具背包已经满了。当前容量 ${getItemBagLoad()}/${getItemBagCapacity()}，先清理或升级背包。`, 'sys');
+        renderGeneralStoreModal();
         return;
     }
 
     gameState.money -= item.price;
-    addInventoryItem(itemName, 1);
+    const added = addInventoryItem(itemName, 1);
+    if (added <= 0) {
+        gameState.money += item.price;
+        addLog(`你的道具背包已经装不下 <strong>${itemName}</strong> 了。`, 'sys');
+        renderGeneralStoreModal();
+        return;
+    }
     addLog(`你购买了 <strong>${itemName}</strong>。`, 'heal');
     updateUI();
-    openGeneralStore();
+    renderGeneralStoreModal();
+}
+
+function buyBagUpgrade(item) {
+    const storage = gameState.progress.storage;
+    const tierKey = item.upgradeType === 'item' ? 'itemBagCapacity' : 'petBagCapacity';
+    const tierNameKey = item.upgradeType === 'item' ? 'itemBagTier' : 'petBagTier';
+    const currentCapacity = safeNumber(storage[tierKey], 0);
+    if (currentCapacity >= safeNumber(item.capacity, currentCapacity)) {
+        addLog(`<strong>${item.name}</strong> 对你来说已经没有提升了。`, 'sys');
+        renderGeneralStoreModal();
+        return;
+    }
+    if (gameState.money < item.price) {
+        addLog(`你的${CURRENCY_NAME}不够。`, 'sys');
+        renderGeneralStoreModal();
+        return;
+    }
+    gameState.money -= item.price;
+    storage[tierKey] = item.capacity;
+    storage[tierNameKey] = item.tier;
+    markItemSeen(item.name);
+    addLog(`你购入了 <strong>${item.name}</strong>，${item.upgradeType === 'item' ? '道具背包' : '宠物背包'}容量提升到 ${item.capacity}。`, 'heal');
+    updateUI();
+    renderGeneralStoreModal();
 }
 
 function openPetMarket() {
     addLog(NARRATIVE.village.petMarketGreeting, 'dialogue');
-    const buttons = PET_MARKET.filter((entry) => !entry.requiresForest || gameState.progress.mapsUnlocked.forest)
-        .map((entry) => ({
-            text: `${entry.name} - ${entry.price} ${CURRENCY_NAME}`,
-            action: () => buyPetFromMarket(entry.name)
-        }));
-    buttons.push({ text: '离开宠物市集', action: enterHub });
-    setButtons(buttons);
+    renderPetMarketModal();
+}
+
+function renderPetMarketModal() {
+    if (!petMarketModal || !petMarketModalContent) return;
+    const filters = [
+        { key: 'all', label: '全部' },
+        { key: '普通', label: '普通' },
+        { key: '稀有', label: '稀有' },
+        { key: '超稀有', label: '超稀有' },
+        { key: '极品', label: '极品' }
+    ];
+    const entries = PET_MARKET
+        .filter((entry) => !entry.requiresForest || gameState.progress.mapsUnlocked.forest)
+        .filter((entry) => currentPetMarketFilter === 'all' || PETS[entry.name]?.rarity === currentPetMarketFilter);
+    const cardHtml = entries.map((entry) => {
+        const petData = PETS[entry.name];
+        const bagFull = gameState.petReserve.length >= getPetBagCapacity();
+        const notEnoughMoney = gameState.money < entry.price;
+        const disabled = bagFull || notEnoughMoney;
+        return `
+            <div class="store-card ${disabled ? 'disabled' : ''}">
+                <div class="store-card-head">
+                    <strong>${entry.name}</strong>
+                    <span class="status-pill money">${entry.price} ${CURRENCY_NAME}</span>
+                </div>
+                <div class="store-card-meta">稀有度：${petData?.rarity || '未知'}｜属性：${petData?.type || '未知'}</div>
+                <div class="store-card-body">${entry.description}</div>
+                <div class="pet-card-badges">
+                    <span class="status-pill rarity rarity-${petData?.rarity || '普通'}">${petData?.rarity || '普通'}</span>
+                    ${renderTypeBadges(petData?.type || '普通')}
+                </div>
+                <div class="store-card-foot">
+                    <span class="store-card-status">${bagFull ? `宠物背包已满 ${gameState.petReserve.length}/${getPetBagCapacity()}` : notEnoughMoney ? `需要 ${entry.price} ${CURRENCY_NAME}` : `购买后剩余 ${Math.max(0, gameState.money - entry.price)} ${CURRENCY_NAME}`}</span>
+                    <button class="store-buy-button" onclick="buyPetFromMarket('${entry.name}')" ${disabled ? 'disabled' : ''}>领走</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+    petMarketModalContent.innerHTML = `
+        <div class="status-version">${CURRENCY_NAME} ${formatValue(gameState.money)}｜宠物背包 ${gameState.petReserve.length}/${getPetBagCapacity()}</div>
+        <section class="status-card neutral dex-card">
+            <div class="status-card-header">
+                <div>
+                    <div class="status-title">待领风纹兽</div>
+                    <div class="status-subtitle">按稀有度筛选后查看属性、定位和价格，再决定是否收进队伍。</div>
+                </div>
+            </div>
+            <div class="store-filters">
+                ${filters.map((filter) => `<button class="store-filter-tab ${currentPetMarketFilter === filter.key ? 'active' : ''}" onclick="setPetMarketFilter('${filter.key}')">${filter.label}</button>`).join('')}
+            </div>
+            <div class="store-grid">
+                ${cardHtml || '<div class="inventory-empty">当前筛选下没有可购买的风纹兽。</div>'}
+            </div>
+        </section>
+    `;
+    petMarketModal.style.display = 'flex';
+}
+
+function setPetMarketFilter(filterKey = 'all') {
+    currentPetMarketFilter = ['all', '普通', '稀有', '超稀有', '极品'].includes(filterKey) ? filterKey : 'all';
+    renderPetMarketModal();
 }
 
 function buyPetFromMarket(petName) {
@@ -1866,7 +2218,12 @@ function buyPetFromMarket(petName) {
     if (!entry) return;
     if (gameState.money < entry.price) {
         addLog(`你的${CURRENCY_NAME}不够。`, 'sys');
-        openPetMarket();
+        renderPetMarketModal();
+        return;
+    }
+    if (gameState.petReserve.length >= getPetBagCapacity()) {
+        addLog(`你的宠物背包已经满了。当前容量 ${gameState.petReserve.length}/${getPetBagCapacity()}，无法再领走新的宠物。`, 'sys');
+        renderPetMarketModal();
         return;
     }
 
@@ -1874,11 +2231,15 @@ function buyPetFromMarket(petName) {
     addPetToReserve(petName, 'market');
     addLog(`曲婶把 <strong>${petName}</strong> 的牵绳递给了你。小家伙先绕着你转了一圈，才算正式认主。`, 'heal');
     updateUI();
-    openPetMarket();
+    renderPetMarketModal();
 }
 
-function addPetToReserve(petName, source = 'capture') {
-    const pet = createPetInstance(petName);
+function addPetToReserve(petName, source = 'capture', level = 1) {
+    if (gameState.petReserve.length >= getPetBagCapacity()) {
+        addLog(`你的宠物背包已经满了。当前容量 ${gameState.petReserve.length}/${getPetBagCapacity()}。`, 'sys');
+        return null;
+    }
+    const pet = createPetInstance(petName, level);
     pet.owner = null;
     gameState.petReserve.push(pet);
     markPetSeen(petName);
@@ -1891,10 +2252,21 @@ function addPetToReserve(petName, source = 'capture') {
     return pet;
 }
 
+function openPetManagementMenu() {
+    addLog(`你检查了宠物背包。当前后备宠物 ${gameState.petReserve.length}/${getPetBagCapacity()}。`, 'sys');
+    const buttons = [];
+    if (gameState.petReserve.length > 0) {
+        buttons.push({ text: '更换主宠', action: openPetSwitchMenu });
+        buttons.push({ text: '放生后备宠物', action: openReleasePetMenu });
+    }
+    buttons.push({ text: '返回村庄主界面', action: enterHub });
+    setButtons(buttons);
+}
+
 function openPetSwitchMenu() {
     if (gameState.petReserve.length === 0) {
         addLog('你暂时没有可以替换的后备宠物。', 'sys');
-        enterHub();
+        openPetManagementMenu();
         return;
     }
 
@@ -1918,6 +2290,32 @@ function switchActivePet(index) {
     addLog(`你让 <strong>${gameState.pet.name}</strong> 站到了身边。它抖了抖身上的毛与叶片，显然早就等不及要上场了。`, 'heal');
     updateUI();
     runAfterLogs(() => enterHub(), 100);
+}
+
+function openReleasePetMenu() {
+    if (gameState.petReserve.length === 0) {
+        addLog('你的后备宠物栏现在是空的。', 'sys');
+        openPetManagementMenu();
+        return;
+    }
+    addLog('你把几枚备用牵绳摆在桌上，考虑是否让某只宠物回到更适合它的地方。', 'sys');
+    const buttons = gameState.petReserve.map((pet, index) => ({
+        text: `放生 ${pet.name} (Lv.${safeNumber(pet.level, 1)})`,
+        action: () => releaseReservePet(index)
+    }));
+    buttons.push({ text: '返回宠物管理', action: openPetManagementMenu });
+    setButtons(buttons);
+}
+
+function releaseReservePet(index) {
+    const released = gameState.petReserve.splice(index, 1)[0];
+    if (!released) {
+        openPetManagementMenu();
+        return;
+    }
+    addLog(`你解开了 <strong>${released.name}</strong> 的牵绳，让它重新回到风里和草里。`, 'sys');
+    updateUI();
+    runAfterLogs(() => openPetManagementMenu(), 100);
 }
 
 function gainExp(amount, options = {}) {
@@ -2018,6 +2416,10 @@ function mergeProgress(progress) {
             ...base.questStates,
             ...(progress.questStates || {})
         },
+        storage: {
+            ...base.storage,
+            ...(progress.storage || {})
+        },
         encyclopedia: {
             ...base.encyclopedia,
             ...(progress.encyclopedia || {}),
@@ -2028,6 +2430,10 @@ function mergeProgress(progress) {
             seenCharacters: {
                 ...base.encyclopedia.seenCharacters,
                 ...((progress.encyclopedia && progress.encyclopedia.seenCharacters) || {})
+            },
+            seenItems: {
+                ...base.encyclopedia.seenItems,
+                ...((progress.encyclopedia && progress.encyclopedia.seenItems) || {})
             }
         },
         flags: {
@@ -2276,6 +2682,8 @@ function showAbout() {
 
 function hideAllMenus() {
     closeDexModal();
+    closeStoreModal();
+    closePetMarketModal();
     document.getElementById('main-menu').style.display = 'none';
     document.getElementById('save-slot-menu').style.display = 'none';
     document.getElementById('load-game-menu').style.display = 'none';
@@ -2374,6 +2782,10 @@ function initDomRefs() {
     uiModeToggleButton = document.getElementById('uiModeToggleButton');
     dexModal = document.getElementById('dexModal');
     dexModalContent = document.getElementById('dexModalContent');
+    storeModal = document.getElementById('storeModal');
+    storeModalContent = document.getElementById('storeModalContent');
+    petMarketModal = document.getElementById('petMarketModal');
+    petMarketModalContent = document.getElementById('petMarketModalContent');
     syncVersionLabels();
     renderAboutContent();
     applyUiMode(loadUiModePreference());

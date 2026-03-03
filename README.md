@@ -1,6 +1,6 @@
 # A Rustling Grass / 微风草丛
 
-当前版本 / Current Version: `0.13.4`
+当前版本 / Current Version: `0.14.0`
 
 《微风草丛》是一款持续迭代中的文字驱动回合制 RPG。玩家从微风村出发，选择职业与初始宠物，在草丛、森林与实验室线索之间推进第一章剧情，进行探索、战斗、捕获、调查与解谜。
 
@@ -29,6 +29,42 @@ This project is still under active development. You may still encounter balance 
 - 实验室内部会进入灾变现场，并遭遇第一章内部 Boss“失衡实验体”。
 
 ## 近期关键更新 / Recent Major Updates
+
+### 0.14.0 Pet Market Modal and Shop Filters
+
+- The pet market now uses its own modal layout with card-based purchase entries.
+- The general store now supports category filters for supplies, pet items, capture balls, and bag upgrades.
+- The pet market now supports rarity filters so reserve recruitment is easier to browse.
+
+### 0.13.9 Store Modal Refresh
+
+- The general store now opens as a dedicated modal page instead of filling the main action button area.
+- Each product card shows its price, description, purchase state, and direct buy button.
+- Full bag, insufficient money, and already-upgraded states are now visible directly inside the shop UI.
+
+### 0.13.8 Three-Section Encyclopedia
+
+- The encyclopedia is now split into three switchable sections: characters, wind beasts, and items.
+- Added a full item encyclopedia for capture balls, consumables, bag upgrades, and key special items.
+- Old saves will backfill item records from the current inventory and purchased upgrades.
+
+### 0.13.7 Bag Capacity and Pet Management
+
+- Added separate item-bag and pet-bag capacity systems, both shown in the status panel.
+- The general store now sells bag upgrades for item storage and reserve pet capacity.
+- Added a pet management menu so reserve pets can be switched in or released directly.
+
+### 0.13.6 Capture Inheritance and Item Expansion
+
+- Captured wild pets now keep half of the original target level instead of resetting fully to level 1.
+- The store now carries a much larger set of human and pet consumables, including stronger healing, mana recovery, and mixed-use supplies.
+- Item bucketing now follows the configured item tables, making later backpack separation work easier to add.
+
+### 0.13.5 Dynamic Skill and Enemy Scaling
+
+- Skill damage and healing now scale with the acting unit's own level instead of staying tied to flat values.
+- Wild enemies in both grassland and forest now scale with the player's current level.
+- In duo mode, wild encounters are pushed higher again so combat remains threatening instead of trivial.
 
 ### 0.13.4 Skill Scaling and Boss Encyclopedia Update
 
