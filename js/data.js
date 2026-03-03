@@ -1,5 +1,6 @@
-﻿const GAME_VERSION = '0.12.0';
+﻿const GAME_VERSION = '0.12.1';
 const VERSION_HISTORY = [
+    { version: '0.12.1', date: '2026-03-03', summary: '重构图鉴大全交互为居中弹窗，整合技能升级信息，并为不同稀有度增加独立颜色标记。' },
     { version: '0.12.0', date: '2026-03-03', summary: '新增剧情获得的图鉴大全，收录宠物、人物与敌对单位，并按遭遇与捕获逐步解锁条目。' },
     { version: '0.11.2', date: '2026-03-03', summary: '新增开发者专用的 NPC 对话与任务总表文档，汇总当前主线、支线和村庄对话实现。' },
     { version: '0.11.1', date: '2026-03-03', summary: '重做“桥边异响”支线引导，补上村长确认环节，并按阶段显示明确的下一步操作。' },
@@ -600,6 +601,8 @@ const ENCYCLOPEDIA_CHARACTER_ENTRIES = [
         name: '林晓',
         role: '试炼对手 / 可选伙伴',
         group: '关键人物',
+        className: '弓兵',
+        petName: '咕咕鸟',
         unlockHint: '在草丛中与林晓完成比试后解锁。',
         description: '你的青梅玩伴，张扬、直率，战斗时却比平时更冷静。愿不愿同行，会改变你第一章之后的旅途节奏。'
     },

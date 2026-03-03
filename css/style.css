@@ -658,6 +658,31 @@ button:disabled {
     color: #d6c7ff;
 }
 
+.status-pill.rarity-普通 {
+    background: rgba(154, 108, 190, 0.22);
+    color: #ead7ff;
+}
+
+.status-pill.rarity-稀有 {
+    background: rgba(74, 160, 95, 0.22);
+    color: #d5ffd9;
+}
+
+.status-pill.rarity-超稀有 {
+    background: rgba(72, 120, 214, 0.22);
+    color: #dbe8ff;
+}
+
+.status-pill.rarity-极品 {
+    background: rgba(214, 176, 70, 0.24);
+    color: #fff0b3;
+}
+
+.status-pill.rarity-神兽 {
+    background: rgba(201, 77, 77, 0.24);
+    color: #ffd8d8;
+}
+
 .status-inline-row {
     display: flex;
     flex-wrap: wrap;
@@ -813,9 +838,153 @@ button:disabled {
     min-height: 42px;
 }
 
-.skill-compendium-card {
-    max-height: calc(100vh - 220px);
+.overlay-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(10, 12, 15, 0.7);
+    backdrop-filter: blur(3px);
+}
+
+.overlay-dialog {
+    width: min(1080px, calc(100vw - 48px));
+    max-height: calc(100vh - 48px);
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #4d5b4f;
+    border-radius: 16px;
+    background: linear-gradient(180deg, #262626 0%, #1c1f1d 100%);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+}
+
+.overlay-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.overlay-header h3 {
+    margin: 0;
+    color: #f1e2ae;
+}
+
+.overlay-subtitle {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #b5bdb6;
+}
+
+.overlay-content {
     overflow-y: auto;
+    padding: 18px 20px 20px;
+}
+
+.dex-card {
+    max-height: none;
+    overflow: visible;
+    margin-bottom: 0;
+}
+
+.dex-section {
+    margin-top: 18px;
+}
+
+.dex-section:first-of-type {
+    margin-top: 0;
+}
+
+.dex-section-title,
+.dex-subtitle {
+    margin-bottom: 10px;
+    color: #dbe8d1;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.dex-entry {
+    margin-bottom: 12px;
+    padding: 12px;
+    border: 1px solid rgba(76, 175, 80, 0.18);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.dex-entry.locked {
+    border-style: dashed;
+    opacity: 0.82;
+}
+
+.dex-entry-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.dex-code {
+    display: inline-flex;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #b8c7bc;
+    font-size: 11px;
+}
+
+.dex-meta-line,
+.dex-stats,
+.dex-body,
+.dex-rarity-line,
+.dex-skill-line {
+    font-size: 12px;
+    line-height: 1.6;
+    color: #aeb8b1;
+}
+
+.dex-meta-line,
+.dex-stats {
+    margin-bottom: 6px;
+}
+
+.dex-body {
+    margin-bottom: 8px;
+}
+
+.dex-rarity-line {
+    display: grid;
+    grid-template-columns: 74px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+    margin-bottom: 8px;
+}
+
+.dex-skill-line {
+    display: grid;
+    grid-template-columns: 56px 96px minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+    margin-bottom: 6px;
+}
+
+.dex-skill-level {
+    color: #ffd77f;
+}
+
+.dex-skill-name {
+    color: #d8ebd8;
+    font-weight: bold;
+}
+
+.dex-skill-desc {
+    color: #aeb8b1;
 }
 
 .skill-owner-block {
@@ -978,6 +1147,28 @@ body[data-ui-mode='ops'] .action-help {
     color: #506272;
 }
 
+body[data-ui-mode='ops'] .overlay-modal {
+    background: rgba(32, 45, 56, 0.42);
+}
+
+body[data-ui-mode='ops'] .overlay-dialog {
+    border-color: #c3d0db;
+    background: linear-gradient(180deg, #ffffff 0%, #eef3f6 100%);
+    box-shadow: 0 24px 56px rgba(41, 62, 78, 0.18);
+}
+
+body[data-ui-mode='ops'] .overlay-header {
+    border-bottom-color: #d2dce4;
+}
+
+body[data-ui-mode='ops'] .overlay-header h3 {
+    color: #27475f;
+}
+
+body[data-ui-mode='ops'] .overlay-subtitle {
+    color: #617789;
+}
+
 body[data-ui-mode='ops'] .status-card {
     background: linear-gradient(180deg, #ffffff 0%, #f0f4f7 100%);
     border-color: #c3d0db;
@@ -1002,6 +1193,34 @@ body[data-ui-mode='ops'] .status-version {
 body[data-ui-mode='ops'] .combat-unit {
     background: #f5f9fb;
     border-color: #c5d2dc;
+}
+
+body[data-ui-mode='ops'] .dex-section-title,
+body[data-ui-mode='ops'] .dex-subtitle,
+body[data-ui-mode='ops'] .dex-skill-name {
+    color: #3d607d;
+}
+
+body[data-ui-mode='ops'] .dex-entry {
+    border-color: #ccd7e0;
+    background: rgba(86, 117, 145, 0.04);
+}
+
+body[data-ui-mode='ops'] .dex-code {
+    background: rgba(67, 96, 118, 0.08);
+    color: #617789;
+}
+
+body[data-ui-mode='ops'] .dex-meta-line,
+body[data-ui-mode='ops'] .dex-stats,
+body[data-ui-mode='ops'] .dex-body,
+body[data-ui-mode='ops'] .dex-rarity-line,
+body[data-ui-mode='ops'] .dex-skill-desc {
+    color: #627789;
+}
+
+body[data-ui-mode='ops'] .dex-skill-level {
+    color: #8c6b1f;
 }
 
 body[data-ui-mode='ops'] .combat-unit.active {
@@ -1123,8 +1342,30 @@ body[data-ui-mode='ops'] .about-faction-head {
     }
 
     .about-changelog-head,
-    .about-faction-head {
+    .about-faction-head,
+    .dex-entry-head {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    .dex-rarity-line,
+    .dex-skill-line {
+        display: flex;
+        gap: 6px;
+    }
+
+    .overlay-modal {
+        padding: 12px;
+    }
+
+    .overlay-dialog {
+        width: 100%;
+        max-height: calc(100vh - 24px);
+    }
+
+    .overlay-header,
+    .overlay-content {
+        padding-left: 14px;
+        padding-right: 14px;
     }
 }

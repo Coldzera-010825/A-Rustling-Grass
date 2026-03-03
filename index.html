@@ -11,7 +11,7 @@
     <div id="main-menu" class="menu-screen">
         <div class="menu-container">
             <h1 class="game-title">A Rustling Grass</h1>
-            <h2 class="game-subtitle">微风草丛</h2><p id="gameVersionLabel" class="game-version">Version 0.11.0</p>
+            <h2 class="game-subtitle">微风草丛</h2><p id="gameVersionLabel" class="game-version">Version 0.12.1</p>
             <div class="menu-buttons">
                 <button class="menu-button" onclick="showNewGameMenu()">新游戏</button>
                 <button class="menu-button" onclick="showLoadGameMenu()">继续游戏</button>
@@ -48,7 +48,7 @@
                 <p>选择你的职业，收服你的宠物伙伴</p>
                 <p>在微风草丛中探索与战斗</p>
                 <p>提升等级，变得更强！</p>
-                <p id="aboutVersionLabel" style="margin-top: 20px;">版本: 0.11.0</p>
+                <p id="aboutVersionLabel" style="margin-top: 20px;">版本: 0.12.1</p>
             </div>
             <button class="menu-button" onclick="showMainMenu()">返回</button>
         </div>
@@ -59,10 +59,10 @@
         <div id="game-toolbar">
             <div class="toolbar-cluster">
                 <button id="returnMainMenuButton" class="toolbar-button return-button" onclick="promptReturnToMainMenu()">返回主菜单</button>
-                <span id="toolbarVersionLabel" class="toolbar-version">控制台 0.11.0</span>
+                <span id="toolbarVersionLabel" class="toolbar-version">控制台 0.12.1</span>
             </div>
             <div class="toolbar-cluster">
-                <button class="toolbar-button" onclick="openSkillCompendium()">技能总览</button>
+                <button class="toolbar-button" onclick="openMonsterDex()">图鉴大全</button>
                 <button id="uiModeToggleButton" class="toolbar-button" onclick="toggleUiMode()">切换到作业台视图</button>
             </div>
         </div>
@@ -85,6 +85,19 @@
                     <div id="teamInfo"></div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div id="dexModal" class="overlay-modal" style="display:none;" onclick="handleDexOverlayClick(event)">
+        <div class="overlay-dialog dex-dialog" role="dialog" aria-modal="true" aria-labelledby="dexModalTitle">
+            <div class="overlay-header">
+                <div>
+                    <h3 id="dexModalTitle">图鉴大全</h3>
+                    <div class="overlay-subtitle">遭遇、持有、捕获和剧情事件都会逐步补全条目。</div>
+                </div>
+                <button class="toolbar-button secondary-button" onclick="closeDexModal()">关闭</button>
+            </div>
+            <div id="dexModalContent" class="overlay-content"></div>
         </div>
     </div>
 

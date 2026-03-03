@@ -5,6 +5,8 @@ let buttonsArea;
 let teamInfo;
 let actionHelpArea;
 let uiModeToggleButton;
+let dexModal;
+let dexModalContent;
 let currentSaveSlot = null;
 let logQueue = [];
 let isLogProcessing = false;
@@ -165,6 +167,15 @@ function getSkillDescription(skillName) {
     return parts.join('｜');
 }
 
+function getUnitSkillEntries(unit) {
+    const plan = getUnitSkillPlan(unit);
+    return (plan || []).map((entry) => ({
+        level: entry.level,
+        skill: entry.skill,
+        description: getSkillDescription(entry.skill)
+    }));
+}
+
 const NPC_TO_ENCYCLOPEDIA_ENTRY = {
     chief: 'chief',
     zhangsan: 'zhangsan',
@@ -240,6 +251,17 @@ function grantEncyclopedia() {
 function setActionHelp(text = '将鼠标悬停到技能按钮上，可以在这里查看说明。') {
     if (!actionHelpArea) return;
     actionHelpArea.innerHTML = text;
+}
+
+function closeDexModal() {
+    if (!dexModal) return;
+    dexModal.style.display = 'none';
+}
+
+function handleDexOverlayClick(event) {
+    if (event.target === dexModal) {
+        closeDexModal();
+    }
 }
 
 function getRestCost() {
@@ -422,6 +444,7 @@ function setButtons(buttonsData, options = {}) {
 }
 
 function promptReturnToMainMenu() {
+    closeDexModal();
     const shouldSave = currentSaveSlot !== null && confirm(`返回主菜单前是否保存游戏？
 选择“确定”将保存后返回，选择“取消”将直接返回。`);
     if (shouldSave) {
@@ -719,9 +742,6 @@ function getHubButtons() {
         }
         buttons.push({ text: '使用道具', action: openItemMenu });
         buttons.push({ text: '更换主宠', action: openPetSwitchMenu, disabled: gameState.petReserve.length === 0 });
-        if (hasEncyclopediaAccess()) {
-            buttons.push({ text: '图鉴大全', action: openMonsterDex });
-        }
     }
 
     if (flags.linxiaoDefeated && !flags.linxiaoChoiceResolved) {
@@ -950,16 +970,18 @@ function advanceBridgeMystery() {
 
 
 function openMonsterDex() {
-    if (!hasEncyclopediaAccess()) {
-        addLog('你还没有拿到图鉴大全。先推进第一章，在与林晓的比试结束后再来查看。', 'sys');
-        enterHub();
+    if (gameState.phase === 'combat') {
+        addLog('战斗中暂时无法展开图鉴大全，请在回到探索或村庄后查看。', 'sys');
         return;
     }
+    if (!hasEncyclopediaAccess()) {
+        addLog('你还没有拿到图鉴大全。先推进第一章，在与林晓的比试结束后再来查看。', 'sys');
+        return;
+    }
+    if (!dexModalContent || !dexModal) return;
 
     syncEncyclopediaDiscoveries();
     const encyclopedia = ensureEncyclopediaState();
-    addLog('=== 图鉴大全 ===', 'sys');
-    addLog('图鉴会保留所有预留位置，但只有真正见过、击败过或收服过的对象会解锁详细信息。', 'sys');
 
     const renderPetEntry = (entry) => {
         const unlocked = !!encyclopedia.seenPets[entry.key];
@@ -978,10 +1000,12 @@ function openMonsterDex() {
         const captureText = entry.capturable
             ? (entry.captureRequirement ? `可捕获，需要 ${entry.captureRequirement}` : '可捕获')
             : '不可捕获';
-        const skillsHtml = (entry.skills || []).map((skillName) => `
+        const skillPlan = getUnitSkillEntries({ isPet: true, name: entry.key });
+        const skillsHtml = skillPlan.map((skill) => `
             <div class="dex-skill-line">
-                <span class="dex-skill-name">${skillName}</span>
-                <span class="dex-skill-desc">${getSkillDescription(skillName)}</span>
+                <span class="dex-skill-level">Lv.${skill.level}</span>
+                <span class="dex-skill-name">${skill.skill}</span>
+                <span class="dex-skill-desc">${skill.description}</span>
             </div>
         `).join('');
         return `
@@ -989,7 +1013,7 @@ function openMonsterDex() {
                 <div class="dex-entry-head">
                     <span class="dex-code">${entry.id}</span>
                     <strong>${entry.key}</strong>
-                    <span class="status-pill rarity">${entry.rarity}</span>
+                    <span class="status-pill rarity rarity-${entry.rarity}">${entry.rarity}</span>
                 </div>
                 <div class="dex-meta-line">属性：${entry.type}｜出没地：${entry.habitat}｜${captureText}</div>
                 <div class="dex-stats">HP ${entry.stats.hp} / MP ${entry.stats.mp} / ATK ${entry.stats.atk} / SPD ${entry.stats.spd}</div>
@@ -1021,26 +1045,36 @@ function openMonsterDex() {
                     <strong>${entry.name}</strong>
                     <span class="status-pill level">${entry.group}</span>
                 </div>
-                <div class="dex-meta-line">定位：${entry.role}</div>
+                <div class="dex-meta-line">定位：${entry.role}${entry.className ? `｜职业：${entry.className}` : ''}${entry.petName ? `｜搭档：${entry.petName}` : ''}</div>
                 <div class="dex-body">${entry.description}</div>
+                ${entry.className ? `
+                    <div class="dex-subtitle">技能记录</div>
+                    ${getUnitSkillEntries({ class: entry.className }).map((skill) => `
+                        <div class="dex-skill-line">
+                            <span class="dex-skill-level">Lv.${skill.level}</span>
+                            <span class="dex-skill-name">${skill.skill}</span>
+                            <span class="dex-skill-desc">${skill.description}</span>
+                        </div>
+                    `).join('')}
+                ` : ''}
             </div>
         `;
     };
 
     const rarityHtml = ENCYCLOPEDIA_RARITY_GUIDE.map((entry) => `
         <div class="dex-rarity-line">
-            <span class="status-pill rarity">${entry.rarity}</span>
+            <span class="status-pill rarity rarity-${entry.rarity}">${entry.rarity}</span>
             <span>${entry.description}</span>
         </div>
     `).join('');
 
-    let html = `<div class="status-version">版本 ${getCurrentGameVersion()}</div>`;
-    html += `
+    dexModalContent.innerHTML = `
+        <div class="status-version">版本 ${getCurrentGameVersion()}</div>
         <section class="status-card neutral dex-card">
             <div class="status-card-header">
                 <div>
                     <div class="status-title">图鉴大全</div>
-                    <div class="status-subtitle">宠物、人物与敌对单位会按遭遇记录逐步解锁。</div>
+                    <div class="status-subtitle">技能、稀有度、人物定位和遭遇记录都整合在这里。</div>
                 </div>
                 <span class="status-pill duo">已解锁 ${Object.keys(encyclopedia.seenPets).length + Object.keys(encyclopedia.seenCharacters).length}</span>
             </div>
@@ -1058,46 +1092,7 @@ function openMonsterDex() {
             </div>
         </section>
     `;
-    teamInfo.innerHTML = html;
-    setButtons([
-        { text: '返回村庄主界面', action: enterHub },
-        { text: '查看状态', action: viewStatus }
-    ]);
-}
-
-function openSkillCompendium() {
-    if (!teamInfo) return;
-    if (gameState.phase === 'combat') {
-        addLog('战斗中暂时无法展开技能总览，请在回到探索或村庄后查看。', 'sys');
-        return;
-    }
-    addLog('=== 技能总览 ===', 'sys');
-    addLog('角色与宠物都会在 1 / 3 / 6 / 10 级按固定节点获得技能。把鼠标悬停在战斗技能按钮上，也会显示同样的技能说明。', 'sys');
-
-    let html = `<div class="status-version">版本 ${getCurrentGameVersion()}</div>`;
-    html += '<section class="status-card neutral skill-compendium-card"><div class="status-card-header"><div class="status-title">技能说明表</div><span class="status-pill level">Lv 1 / 3 / 6 / 10</span></div>';
-    SKILL_COMPENDIUM.forEach((entry) => {
-        html += `<div class="skill-owner-block">`;
-        html += `<div class="skill-owner-header"><strong>${entry.ownerType} · ${entry.ownerName}</strong><span class="status-pill rarity">${entry.ownerType}</span></div>`;
-        html += `<div class="skill-base-line"><span>${entry.baseAction}</span><span>${entry.baseDescription}</span></div>`;
-        entry.skills.forEach((skill) => {
-            html += `
-                <div class="skill-line">
-                    <span class="skill-line-level">Lv.${skill.level}</span>
-                    <span class="skill-line-name">${skill.skill}</span>
-                    <span class="skill-line-desc">${getSkillDescription(skill.skill)}</span>
-                </div>
-            `;
-        });
-        html += '</div>';
-    });
-    html += '</section>';
-    teamInfo.innerHTML = html;
-
-    setButtons([
-        { text: '返回村庄主界面', action: enterHub, helpText: '关闭技能总览并返回当前村庄界面。' },
-        { text: '查看状态', action: viewStatus, helpText: '回到角色、宠物、背包和任务的状态面板。' }
-    ]);
+    dexModal.style.display = 'flex';
 }
 
 function openItemMenu() {
@@ -1963,6 +1958,7 @@ function showAbout() {
 }
 
 function hideAllMenus() {
+    closeDexModal();
     document.getElementById('main-menu').style.display = 'none';
     document.getElementById('save-slot-menu').style.display = 'none';
     document.getElementById('load-game-menu').style.display = 'none';
@@ -2059,6 +2055,8 @@ function initDomRefs() {
     teamInfo = document.getElementById('teamInfo');
     actionHelpArea = document.getElementById('actionHelp');
     uiModeToggleButton = document.getElementById('uiModeToggleButton');
+    dexModal = document.getElementById('dexModal');
+    dexModalContent = document.getElementById('dexModalContent');
     syncVersionLabels();
     renderAboutContent();
     applyUiMode(loadUiModePreference());
