@@ -315,7 +315,7 @@ function showCombatOptions(unit) {
             action: () => useSkill(unit, skillName),
             className: 'skill-button',
             disabled: unit.mp < skill.mpCost,
-            helpText: getSkillDescription(skillName)
+            helpText: getSkillDescription(skillName, unit)
         });
     });
 
@@ -384,7 +384,7 @@ function useSkill(attacker, skillName) {
     const target = chooseTarget(targets, skill, attacker);
     addLog(`<strong>${attacker.name}</strong> 使用了 <strong>${skillName}</strong>！`, 'combat');
     if (skill.damage > 0) {
-        let damage = skill.damage;
+        let damage = getScaledSkillAmount(skill, attacker) ?? skill.damage;
         if (cs.allyLightActive && !attacker.isEnemy) {
             damage += 2;
         }
@@ -398,7 +398,7 @@ function useSkill(attacker, skillName) {
         addLog(`→ <strong>${target.name}</strong> 受到 ${damage} 点伤害！(剩余HP: ${target.hp})`, 'damage');
         handleLinkedDefeat(target);
     } else if (skill.damage < 0) {
-        const heal = -skill.damage;
+        const heal = getScaledSkillAmount(skill, attacker) ?? -skill.damage;
         target.hp = Math.min(target.maxHp, target.hp + heal);
         triggerCombatUnitEffect(target, 'heal', heal);
         addLog(`→ <strong>${target.name}</strong> 恢复了 ${heal} HP！(当前HP: ${target.hp})`, 'heal');

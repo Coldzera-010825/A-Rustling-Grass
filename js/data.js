@@ -1,5 +1,6 @@
-const GAME_VERSION = '0.13.3';
+const GAME_VERSION = '0.13.4';
 const VERSION_HISTORY = [
+    { version: '0.13.4', date: '2026-03-03', summary: '让技能伤害与治疗随单位 ATK 和等级成长，并为失衡实验体补上图鉴技能信息。' },
     { version: '0.13.3', date: '2026-03-03', summary: '将图鉴中的属性克制区改为节点箭头式关系图，并整理宠物条目的属性展示，移除重复文案。' },
     { version: '0.13.2', date: '2026-03-03', summary: '将图鉴中的属性克制区重构为更清晰的单向箭头图，替换原先较杂乱的环形箭头布局。' },
     { version: '0.13.1', date: '2026-03-03', summary: '强化 Boss 数值与技能层级，调整宠物技能伤害曲线，取消普攻属性判定，并在图鉴大全中加入属性克制图与属性颜色标记。' },
@@ -403,6 +404,7 @@ const ENEMIES = {
     '实验机器人': {
         type: '机械',
         rarity: '极品',
+        level: 5,
         hp: 34,
         mp: 16,
         atk: 9,
@@ -413,6 +415,7 @@ const ENEMIES = {
     '失衡实验体': {
         type: '草/电',
         rarity: '极品',
+        level: 8,
         hp: 58,
         mp: 26,
         atk: 13,
@@ -665,6 +668,7 @@ const ENCYCLOPEDIA_CHARACTER_ENTRIES = [
         name: '失衡实验体',
         role: '内部 Boss / 失败造物',
         group: '敌对单位',
+        enemyKey: '失衡实验体',
         unlockHint: '在实验室深处遭遇失衡实验体后解锁。',
         description: '风纹压缩实验失控后诞生的异常生命。它不再像被驯服的宠物，更像把整座实验室怨气和风纹残响一起吞进去的活灾害。'
     }

@@ -171,14 +171,55 @@ function renderTypeBadges(typeValue = '') {
     return parseTypeParts(typeValue).map((typeName) => `<span class="type-badge ${getTypeBadgeClass(typeName)}">${typeName}</span>`).join('');
 }
 
-function getSkillDescription(skillName) {
+function getReferenceUnitPreview(unit, level = 1) {
+    const normalizedLevel = Math.max(1, safeNumber(level, safeNumber(unit?.level, 1)));
+    if (unit?.enemyKey) {
+        const enemy = ENEMIES[unit.enemyKey];
+        return enemy ? {
+            atk: safeNumber(enemy.atk, 0),
+            level: Math.max(1, safeNumber(enemy.level, normalizedLevel))
+        } : { atk: 0, level: normalizedLevel };
+    }
+    if (unit?.isPet && unit?.name) {
+        const pet = MONSTERS[unit.name];
+        return pet ? {
+            atk: safeNumber(pet.atk, 0) + safeNumber(EXP_SYSTEM.petGrowth?.atk, 0) * Math.max(0, normalizedLevel - 1),
+            level: normalizedLevel
+        } : { atk: 0, level: normalizedLevel };
+    }
+    if (unit?.class) {
+        const role = PLAYER_CLASSES[unit.class];
+        const growth = EXP_SYSTEM.playerGrowth?.[unit.class];
+        return role ? {
+            atk: safeNumber(role.atk, 0) + safeNumber(growth?.atk, 0) * Math.max(0, normalizedLevel - 1),
+            level: normalizedLevel
+        } : { atk: 0, level: normalizedLevel };
+    }
+    return {
+        atk: safeNumber(unit?.atk, 0),
+        level: Math.max(1, safeNumber(unit?.level, normalizedLevel))
+    };
+}
+
+function getScaledSkillAmount(skill, unit) {
+    if (!skill || !unit || safeNumber(skill.damage, 0) === 0) return null;
+    const level = Math.max(1, safeNumber(unit.level, 1));
+    const atk = Math.max(0, safeNumber(unit.atk, 0));
+    if (skill.damage > 0) {
+        return Math.max(1, Math.floor(skill.damage + atk * 0.55 + Math.max(0, level - 1) * 0.35));
+    }
+    return Math.max(1, Math.floor(Math.abs(skill.damage) + atk * 0.25 + Math.max(0, level - 1) * 0.2));
+}
+
+function getSkillDescription(skillName, unit = null) {
     const skill = SKILL_DATA[skillName];
     if (!skill) return '暂无技能说明。';
     const parts = [];
     if (skill.type) parts.push(`属性：${skill.type}`);
     parts.push(`MP：${safeNumber(skill.mpCost, 0)}`);
-    if (skill.damage > 0) parts.push(`效果：造成 ${skill.damage} 点基础伤害`);
-    if (skill.damage < 0) parts.push(`效果：恢复 ${Math.abs(skill.damage)} 点生命`);
+    const scaledAmount = getScaledSkillAmount(skill, unit);
+    if (skill.damage > 0) parts.push(scaledAmount !== null ? `效果：造成约 ${scaledAmount} 点伤害（基础 ${skill.damage}）` : `效果：基础伤害 ${skill.damage}，会随等级与 ATK 成长`);
+    if (skill.damage < 0) parts.push(scaledAmount !== null ? `效果：恢复约 ${scaledAmount} 点生命（基础 ${Math.abs(skill.damage)}）` : `效果：基础恢复 ${Math.abs(skill.damage)}，会随等级与 ATK 成长`);
     if (skill.damage === 0) parts.push('效果：功能型技能');
     parts.push(skill.desc);
     return parts.join('｜');
@@ -189,7 +230,7 @@ function getUnitSkillEntries(unit) {
     return (plan || []).map((entry) => ({
         level: entry.level,
         skill: entry.skill,
-        description: getSkillDescription(entry.skill)
+        description: getSkillDescription(entry.skill, getReferenceUnitPreview(unit, entry.level))
     }));
 }
 
@@ -1265,6 +1306,15 @@ function openMonsterDex() {
                 </div>
             `;
         }
+        const skillEntries = entry.className
+            ? getUnitSkillEntries({ class: entry.className })
+            : (entry.enemyKey && ENEMIES[entry.enemyKey]
+                ? (ENEMIES[entry.enemyKey].skills || []).map((skillName) => ({
+                    level: `${safeNumber(ENEMIES[entry.enemyKey].level, 1)}`,
+                    skill: skillName,
+                    description: getSkillDescription(skillName, getReferenceUnitPreview({ enemyKey: entry.enemyKey }))
+                }))
+                : []);
         return `
             <div class="dex-entry">
                 <div class="dex-entry-head">
@@ -1274,9 +1324,9 @@ function openMonsterDex() {
                 </div>
                 <div class="dex-meta-line">定位：${entry.role}${entry.className ? `｜职业：${entry.className}` : ''}${entry.petName ? `｜搭档：${entry.petName}` : ''}</div>
                 <div class="dex-body">${entry.description}</div>
-                ${entry.className ? `
+                ${skillEntries.length > 0 ? `
                     <div class="dex-subtitle">技能记录</div>
-                    ${getUnitSkillEntries({ class: entry.className }).map((skill) => `
+                    ${skillEntries.map((skill) => `
                         <div class="dex-skill-line">
                             <span class="dex-skill-level">Lv.${skill.level}</span>
                             <span class="dex-skill-name">${skill.skill}</span>

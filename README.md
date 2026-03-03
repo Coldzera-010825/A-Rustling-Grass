@@ -1,6 +1,6 @@
 # A Rustling Grass / 微风草丛
 
-当前版本 / Current Version: `0.13.3`
+当前版本 / Current Version: `0.13.4`
 
 《微风草丛》是一款持续迭代中的文字驱动回合制 RPG。玩家从微风村出发，选择职业与初始宠物，在草丛、森林与实验室线索之间推进第一章剧情，进行探索、战斗、捕获、调查与解谜。
 
@@ -29,6 +29,12 @@ This project is still under active development. You may still encounter balance 
 - 实验室内部会进入灾变现场，并遭遇第一章内部 Boss“失衡实验体”。
 
 ## 近期关键更新 / Recent Major Updates
+
+### 0.13.4 Skill Scaling and Boss Encyclopedia Update
+
+- Skill damage and healing now scale with the user's ATK and level instead of staying fully fixed.
+- Skill descriptions and encyclopedia entries now preview scaled results rather than only listing flat values.
+- The aberration boss entry now includes its skill list after the encyclopedia record is unlocked.
 
 ### 0.13.3 Encyclopedia Layout Refresh
 
