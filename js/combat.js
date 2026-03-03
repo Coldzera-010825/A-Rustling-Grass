@@ -219,6 +219,16 @@ function updateCombatUI() {
 
 function startCombat(encounterId, options = {}) {
     gameState.phase = 'combat';
+    if (PETS[encounterId]) {
+        markPetSeen(encounterId);
+    }
+    if (options.isBoss && encounterId === '林晓') {
+        markCharacterSeen('linxiao');
+        markPetSeen(NPC_CHARACTERS['林晓']?.pet);
+    }
+    if (encounterId === '实验机器人') {
+        markCharacterSeen('lab_robot');
+    }
 
     const allies = buildCombatAllies();
     const enemies = createEnemyUnit(encounterId, options);

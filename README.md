@@ -1,6 +1,6 @@
 # A Rustling Grass / 微风草丛
 
-当前版本 / Current Version: `0.9.3`
+当前版本 / Current Version: `0.11.0`
 
 《微风草丛》是一款持续迭代中的文字冒险回合制 RPG。玩家将从微风村出发，选择职业与初始宠物，在草丛与森林中探索、战斗、捕获宠物、推进第一章剧情。
 
@@ -15,6 +15,25 @@ Open `index.html` in a browser to start the game.
 本项目仍在持续更新中，当前版本并非最终正式版。游玩过程中可能出现部分 bug、平衡性不足或机制仍在调整的情况。
 
 This project is still under active development. You may encounter bugs, balance issues, or mechanics that are still being tuned.
+
+## 0.11.0 World Rebuild
+
+Current canon version is `0.11.0`.
+
+The macro setting has been rebuilt around **Windmark Continent** and **Wind Mark**:
+
+- Wind Mark is not wind itself, but the trace left by the world's breathing.
+- Breeze Village is a surviving coexistence-era village.
+- The outside world has already entered an age of exploitation and imbalance.
+- Reverse-flow Wind Marks, mutated creatures, and hidden experiments are now the core mystery behind Chapter One.
+
+Three major factions now define the larger plot:
+
+1. **Dreamland Consortium** tries to design and control Wind Mark.
+2. **Gear Faction** tries to replace Wind Mark with machinery.
+3. **Poacher Nebula** comes from a windless land and has detected an abnormal core near Breeze Village.
+
+Playable scope remains limited to **Chapter One**. Later chapters exist only as foreshadowing in the current build.
 
 ## 更新记录 / Changelog
 详细更新记录见 [CHANGELOG.md](CHANGELOG.md)。

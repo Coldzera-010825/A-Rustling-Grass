@@ -165,9 +165,103 @@ function getSkillDescription(skillName) {
     return parts.join('｜');
 }
 
+const NPC_TO_ENCYCLOPEDIA_ENTRY = {
+    chief: 'chief',
+    zhangsan: 'zhangsan',
+    lisi: 'lisi',
+    ahe: 'ahe',
+    qushen: 'qushen',
+    granny_moss: 'granny_moss',
+    ferryman_bo: 'ferryman_bo'
+};
+
+function ensureEncyclopediaState(progress = gameState.progress) {
+    if (!progress.encyclopedia) {
+        progress.encyclopedia = {
+            obtained: false,
+            seenPets: {},
+            seenCharacters: {}
+        };
+    }
+    if (!progress.encyclopedia.seenPets) progress.encyclopedia.seenPets = {};
+    if (!progress.encyclopedia.seenCharacters) progress.encyclopedia.seenCharacters = {};
+    if (getInventoryCount('怪兽图鉴') > 0) {
+        progress.encyclopedia.obtained = true;
+    }
+    return progress.encyclopedia;
+}
+
+function hasEncyclopediaAccess() {
+    return !!ensureEncyclopediaState().obtained;
+}
+
+function markPetSeen(petName) {
+    if (!petName || !MONSTER_DEX[petName]) return;
+    ensureEncyclopediaState().seenPets[petName] = true;
+}
+
+function markCharacterSeen(entryId) {
+    if (!entryId) return;
+    ensureEncyclopediaState().seenCharacters[entryId] = true;
+}
+
+function syncEncyclopediaDiscoveries() {
+    ensureEncyclopediaState();
+    if (gameState.pet) markPetSeen(gameState.pet.name);
+    gameState.petReserve.forEach((pet) => markPetSeen(pet.name));
+    gameState.party.forEach((member) => {
+        if (member.pet) markPetSeen(member.pet.name);
+    });
+    Object.keys(NPC_TO_ENCYCLOPEDIA_ENTRY).forEach((npcId) => {
+        if (safeNumber(gameState.progress?.villageTalkIndex?.[npcId], 0) > 0) {
+            markCharacterSeen(NPC_TO_ENCYCLOPEDIA_ENTRY[npcId]);
+        }
+    });
+    if (gameState.progress?.flags?.linxiaoMet || gameState.progress?.flags?.linxiaoDefeated) {
+        markCharacterSeen('linxiao');
+    }
+    if (gameState.progress?.flags?.laboratoryFound) {
+        markCharacterSeen('dreamland_agent');
+    }
+    if (gameState.progress?.flags?.chapter1Completed) {
+        markCharacterSeen('lab_robot');
+    }
+}
+
+function grantEncyclopedia() {
+    const encyclopedia = ensureEncyclopediaState();
+    if (encyclopedia.obtained) return false;
+    encyclopedia.obtained = true;
+    addInventoryItem('怪兽图鉴', 1);
+    syncEncyclopediaDiscoveries();
+    return true;
+}
+
 function setActionHelp(text = '将鼠标悬停到技能按钮上，可以在这里查看说明。') {
     if (!actionHelpArea) return;
     actionHelpArea.innerHTML = text;
+}
+
+function getRestCost() {
+    const restsTaken = safeNumber(gameState.progress?.counters?.restsTaken, 0);
+    if (restsTaken < 3) return 0;
+    return 8 + (restsTaken - 3) * 4;
+}
+
+function getBridgeMysteryActionText() {
+    const stage = safeNumber(gameState.progress?.flags?.bridgeMysteryStage, 0);
+    switch (stage) {
+        case 1:
+            return '检查桥边风里的异响';
+        case 2:
+            return '先拿铁片去问村长';
+        case 3:
+            return '比对铁片与桥边痕迹';
+        case 4:
+            return '桥边线索已确认';
+        default:
+            return '查看桥边异样';
+    }
 }
 
 function resetLogSystem() {
@@ -520,6 +614,7 @@ function selectClass(className) {
 function selectPet(petName) {
     gameState.pet = createPetInstance(petName);
     gameState.pet.owner = '玩家';
+    markPetSeen(petName);
     gameState.progress.flags.petSelected = true;
     gameState.progress.storyStep = STORY_STEPS.READY_FOR_FIRST_HUNT;
     addLog(`你把 <strong>${petName}</strong> 抱进怀里。它先是警惕地看着你，随后轻轻碰了碰你的手背，算是默认了这段同路。`, 'sys');
@@ -614,6 +709,7 @@ function enterHub() {
 function getHubButtons() {
     const buttons = [];
     const flags = gameState.progress.flags;
+    const restCost = getRestCost();
 
     if (gameState.player && gameState.pet) {
         buttons.push({ text: '浏览村庄', action: browseVillage });
@@ -621,12 +717,10 @@ function getHubButtons() {
         if (gameState.progress.mapsUnlocked.forest) {
             buttons.push({ text: '进入呢喃森林', action: exploreForest });
         }
-        buttons.push({ text: '杂货铺', action: openGeneralStore });
-        buttons.push({ text: '宠物市集', action: openPetMarket });
         buttons.push({ text: '使用道具', action: openItemMenu });
         buttons.push({ text: '更换主宠', action: openPetSwitchMenu, disabled: gameState.petReserve.length === 0 });
-        if (getInventoryCount('怪兽图鉴') > 0) {
-            buttons.push({ text: '查看图鉴', action: openMonsterDex });
+        if (hasEncyclopediaAccess()) {
+            buttons.push({ text: '图鉴大全', action: openMonsterDex });
         }
     }
 
@@ -634,17 +728,38 @@ function getHubButtons() {
         buttons.unshift({ text: '回应林晓', action: offerLinxiaoChoice });
     }
 
-    buttons.push({ text: '休息（恢复HP/MP）', action: rest });
+    buttons.push({
+        text: restCost === 0 ? '休息（恢复HP/MP，免费）' : `休息（恢复HP/MP，${restCost} ${CURRENCY_NAME}）`,
+        action: rest,
+        helpText: restCost === 0
+            ? `当前属于新手保护，第 ${safeNumber(gameState.progress?.counters?.restsTaken, 0) + 1} 次休息免费。前三次免费。`
+            : `本次休息需要 ${restCost} ${CURRENCY_NAME}，之后每休息一次都会继续涨价。`
+    });
     buttons.push({ text: '查看状态', action: viewStatus });
     buttons.push({ text: '保存游戏', action: saveCurrentGame, className: 'save-game-btn' });
     return buttons;
 }
 
 function rest() {
-    addLog(NARRATIVE.hub.restMessage, 'sys');
+    const restCost = getRestCost();
+    if (restCost > 0 && gameState.money < restCost) {
+        addLog(`你摸了摸钱袋，发现还差 ${restCost - gameState.money} ${CURRENCY_NAME}，暂时付不起这次休息费用。`, 'sys');
+        updateUI();
+        setButtons(getHubButtons());
+        return;
+    }
+
+    if (restCost > 0) {
+        gameState.money -= restCost;
+        addLog(`你支付了 ${restCost} ${CURRENCY_NAME}，在村里的长椅与热汤之间把体力慢慢补了回来。`, 'sys');
+    } else {
+        addLog(NARRATIVE.hub.restMessage, 'sys');
+    }
     healRosterToFull();
+    gameState.progress.counters.restsTaken = safeNumber(gameState.progress.counters.restsTaken, 0) + 1;
     addLog(NARRATIVE.hub.healedMessage, 'heal');
     updateUI();
+    setButtons(getHubButtons());
 }
 
 function healRosterToFull() {
@@ -705,6 +820,12 @@ function visitVillageArea(areaId) {
     const buttons = [];
     if (areaId === 'square') {
         buttons.push({ text: '和村长聊聊', action: () => talkVillageNpc('chief') });
+        if (gameState.progress.flags.bridgeMysteryStage === 2) {
+            buttons.push({ text: '把带齿铁片拿给村长看', action: () => talkVillageNpc('chief') });
+        }
+        if (gameState.progress.flags.bridgeMysteryStage === 4) {
+            buttons.push({ text: '向村长汇报桥边线索', action: () => talkVillageNpc('chief') });
+        }
         buttons.push({ text: '询问巡草委托', action: () => interactWithQuestNpc('chief_patrol') });
     }
     if (areaId === 'well') {
@@ -724,7 +845,7 @@ function visitVillageArea(areaId) {
     }
     if (areaId === 'bridge') {
         buttons.push({ text: '和摆渡伯说话', action: () => talkVillageNpc('ferryman_bo') });
-        buttons.push({ text: '查看桥边异样', action: advanceBridgeMystery });
+        buttons.push({ text: getBridgeMysteryActionText(), action: advanceBridgeMystery });
     }
 
     buttons.push({ text: '继续逛村子', action: browseVillage });
@@ -734,6 +855,40 @@ function visitVillageArea(areaId) {
 
 function talkVillageNpc(npcId) {
     ensureVillageState();
+    markCharacterSeen(NPC_TO_ENCYCLOPEDIA_ENTRY[npcId]);
+    const bridgeStage = safeNumber(gameState.progress.flags.bridgeMysteryStage, 0);
+
+    if (npcId === 'chief' && bridgeStage === 2) {
+        addLog('<strong>村长</strong>接过带齿铁片，眉头一下皱紧了：“这不是桥上的旧物，倒像是森林那边某种装置上掉下来的。你再去桥边看看，把铁片和那里的痕迹仔细对一对，回来告诉我结果。”', 'dialogue');
+        addLog('新的目标：回到溪桥外缘，比对铁片与桥边残留痕迹。', 'sys');
+        gameState.progress.flags.bridgeMysteryStage = 3;
+        setButtons([
+            { text: '立刻去溪桥外缘', action: () => visitVillageArea('bridge') },
+            { text: '继续逛村子', action: browseVillage },
+            { text: '返回村庄主界面', action: enterHub }
+        ]);
+        return;
+    }
+
+    if (npcId === 'chief' && bridgeStage === 4) {
+        addLog('<strong>村长</strong>听完你的比对结果后神色沉了下来：“看来那些人已经不只是在森林里活动了。这事你记一功，村子会记得。”', 'dialogue');
+        if (!gameState.progress.flags.bridgeCharmGranted) {
+            gameState.progress.flags.bridgeCharmGranted = true;
+            gameState.money += 55;
+            addInventoryItem('溪桥护符', 1);
+            addLog('你完成了村庄支线“桥边异响”，获得 <strong>溪桥护符</strong> 与 55 风纹币。', 'heal');
+        } else {
+            addLog('桥边的线索已经整理完毕，这件事暂时告一段落。', 'sys');
+        }
+        gameState.progress.flags.bridgeMysteryStage = 5;
+        updateUI();
+        setButtons([
+            { text: '继续逛村子', action: browseVillage },
+            { text: '返回村庄主界面', action: enterHub }
+        ]);
+        return;
+    }
+
     const lines = VILLAGE_DIALOGUES[npcId] || [];
     const talkIndex = gameState.progress.villageTalkIndex[npcId] || 0;
     const line = lines[Math.min(talkIndex, Math.max(0, lines.length - 1))];
@@ -744,11 +899,13 @@ function talkVillageNpc(npcId) {
 
     if (npcId === 'granny_moss' && gameState.progress.flags.bridgeMysteryStage === 0) {
         addLog('你记下了“桥边有金属响”的线索。看起来这件小事值得顺手查一查。', 'sys');
+        addLog('新的目标：去溪桥外缘找摆渡伯，问问夜里的金属响。', 'sys');
         gameState.progress.flags.bridgeMysteryStage = 1;
     }
 
     if (npcId === 'ferryman_bo' && gameState.progress.flags.bridgeMysteryStage === 1) {
         addLog('摆渡伯把那片带齿纹的铁片交给了你。冰冷的边缘上还沾着一点黑色油污。', 'sys');
+        addLog('新的目标：去村口广场找村长确认这块铁片的来路。', 'sys');
         addInventoryItem('带齿铁片', 1);
         gameState.progress.flags.bridgeMysteryStage = 2;
     }
@@ -767,23 +924,20 @@ function advanceBridgeMystery() {
     if (stage === 0) {
         addLog('你在桥边站了一会儿，只听见溪水和风。也许先问问村里人会更有头绪。', 'sys');
     } else if (stage === 1) {
-        addLog('桥板缝里夹着几根断草和一点黑灰，但还不足以说明什么。你想起苔婆婆提到过夜里的金属响。', 'sys');
+        addLog('桥板缝里夹着几根断草和一点黑灰，但还不足以说明什么。你想起苔婆婆提到过夜里的金属响，也许该去问问常年守在这里的摆渡伯。', 'sys');
     } else if (stage === 2) {
-        addLog('你把带齿铁片压在掌心仔细摩挲，终于确认它和森林实验室门上的铆齿纹路几乎一致。看来那股异响并不是村里旧桥自己发出来的。', 'sys');
-        gameState.progress.flags.bridgeMysteryStage = 3;
+        addLog('你已经拿到了带齿铁片。与其在桥边瞎猜，不如先把它交给村长确认来路。', 'sys');
     } else if (stage === 3) {
-        addLog('<strong>村长</strong>看过铁片后神色沉了下来：“看来那些人已经不只是在森林里活动了。这事你记一功，村子会记得。”', 'dialogue');
-        if (!gameState.progress.flags.bridgeCharmGranted) {
-            gameState.progress.flags.bridgeCharmGranted = true;
-            gameState.money += 55;
-            addInventoryItem('溪桥护符', 1);
-            addLog('你完成了村庄支线“桥边异响”，获得 <strong>溪桥护符</strong> 与 55 风纹币。', 'heal');
-        } else {
-            addLog('桥边的线索已经整理完毕，这件事暂时告一段落。', 'sys');
-        }
+        addLog('你把带齿铁片压在掌心仔细摩挲，终于确认它和森林实验室门上的铆齿纹路几乎一致。看来那股异响并不是村里旧桥自己发出来的。', 'sys');
+        addLog('新的目标：回到村口广场，把比对结果告诉村长。', 'sys');
         gameState.progress.flags.bridgeMysteryStage = 4;
-    } else {
+    } else if (stage === 4) {
+        addLog('桥边的痕迹你已经确认清楚了。现在该回去向村长汇报，不需要继续在这里反复检查。', 'sys');
+    } else if (stage === 5) {
         addLog('桥边重新恢复了平静。至少眼下，村子暂时还是安全的。', 'sys');
+    } else {
+        addLog('<strong>村长</strong>看过铁片后神色沉了下来：“看来那些人已经不只是在森林里活动了。这事你记一功，村子会记得。”', 'dialogue');
+        addLog('桥边支线状态异常，请重新进入村庄界面。', 'sys');
     }
 
     updateUI();
@@ -796,17 +950,115 @@ function advanceBridgeMystery() {
 
 
 function openMonsterDex() {
-    addLog('=== 怪兽图鉴 ===', 'sys');
-    Object.keys(MONSTER_DEX).forEach((name) => {
-        const entry = MONSTER_DEX[name];
+    if (!hasEncyclopediaAccess()) {
+        addLog('你还没有拿到图鉴大全。先推进第一章，在与林晓的比试结束后再来查看。', 'sys');
+        enterHub();
+        return;
+    }
+
+    syncEncyclopediaDiscoveries();
+    const encyclopedia = ensureEncyclopediaState();
+    addLog('=== 图鉴大全 ===', 'sys');
+    addLog('图鉴会保留所有预留位置，但只有真正见过、击败过或收服过的对象会解锁详细信息。', 'sys');
+
+    const renderPetEntry = (entry) => {
+        const unlocked = !!encyclopedia.seenPets[entry.key];
+        if (!unlocked) {
+            return `
+                <div class="dex-entry locked">
+                    <div class="dex-entry-head">
+                        <span class="dex-code">${entry.id}</span>
+                        <strong>???</strong>
+                    </div>
+                    <div class="dex-meta-line">状态：未记录</div>
+                    <div class="dex-body">尚未获得该宠物的观察资料。捕获、拥有或在战斗中遭遇后会解锁这一页。</div>
+                </div>
+            `;
+        }
         const captureText = entry.capturable
             ? (entry.captureRequirement ? `可捕获，需要 ${entry.captureRequirement}` : '可捕获')
             : '不可捕获';
-        addLog(`<strong>${entry.id} ${name}</strong> | 稀有度: ${entry.rarity} | 属性: ${entry.type}`, 'sys');
-        addLog(`能力: HP ${entry.stats.hp} / MP ${entry.stats.mp} / ATK ${entry.stats.atk} / SPD ${entry.stats.spd}`, 'sys');
-        addLog(`技能: ${entry.skills.join('、')}`, 'sys');
-        addLog(`出没地: ${entry.habitat} | ${captureText} | ${entry.note}`, 'dialogue');
-    });
+        const skillsHtml = (entry.skills || []).map((skillName) => `
+            <div class="dex-skill-line">
+                <span class="dex-skill-name">${skillName}</span>
+                <span class="dex-skill-desc">${getSkillDescription(skillName)}</span>
+            </div>
+        `).join('');
+        return `
+            <div class="dex-entry">
+                <div class="dex-entry-head">
+                    <span class="dex-code">${entry.id}</span>
+                    <strong>${entry.key}</strong>
+                    <span class="status-pill rarity">${entry.rarity}</span>
+                </div>
+                <div class="dex-meta-line">属性：${entry.type}｜出没地：${entry.habitat}｜${captureText}</div>
+                <div class="dex-stats">HP ${entry.stats.hp} / MP ${entry.stats.mp} / ATK ${entry.stats.atk} / SPD ${entry.stats.spd}</div>
+                <div class="dex-body">${entry.note}</div>
+                <div class="dex-subtitle">技能记录</div>
+                ${skillsHtml}
+            </div>
+        `;
+    };
+
+    const renderCharacterEntry = (entry) => {
+        const unlocked = !!encyclopedia.seenCharacters[entry.id];
+        if (!unlocked) {
+            return `
+                <div class="dex-entry locked">
+                    <div class="dex-entry-head">
+                        <span class="dex-code">人物 ${String(entry.order).padStart(2, '0')}</span>
+                        <strong>???</strong>
+                    </div>
+                    <div class="dex-meta-line">归类：未确认</div>
+                    <div class="dex-body">${entry.unlockHint}</div>
+                </div>
+            `;
+        }
+        return `
+            <div class="dex-entry">
+                <div class="dex-entry-head">
+                    <span class="dex-code">人物 ${String(entry.order).padStart(2, '0')}</span>
+                    <strong>${entry.name}</strong>
+                    <span class="status-pill level">${entry.group}</span>
+                </div>
+                <div class="dex-meta-line">定位：${entry.role}</div>
+                <div class="dex-body">${entry.description}</div>
+            </div>
+        `;
+    };
+
+    const rarityHtml = ENCYCLOPEDIA_RARITY_GUIDE.map((entry) => `
+        <div class="dex-rarity-line">
+            <span class="status-pill rarity">${entry.rarity}</span>
+            <span>${entry.description}</span>
+        </div>
+    `).join('');
+
+    let html = `<div class="status-version">版本 ${getCurrentGameVersion()}</div>`;
+    html += `
+        <section class="status-card neutral dex-card">
+            <div class="status-card-header">
+                <div>
+                    <div class="status-title">图鉴大全</div>
+                    <div class="status-subtitle">宠物、人物与敌对单位会按遭遇记录逐步解锁。</div>
+                </div>
+                <span class="status-pill duo">已解锁 ${Object.keys(encyclopedia.seenPets).length + Object.keys(encyclopedia.seenCharacters).length}</span>
+            </div>
+            <div class="dex-section">
+                <div class="dex-section-title">稀有度说明</div>
+                ${rarityHtml}
+            </div>
+            <div class="dex-section">
+                <div class="dex-section-title">宠物图鉴</div>
+                ${ENCYCLOPEDIA_PET_ENTRIES.map(renderPetEntry).join('')}
+            </div>
+            <div class="dex-section">
+                <div class="dex-section-title">人物与敌对单位</div>
+                ${ENCYCLOPEDIA_CHARACTER_ENTRIES.map(renderCharacterEntry).join('')}
+            </div>
+        </section>
+    `;
+    teamInfo.innerHTML = html;
     setButtons([
         { text: '返回村庄主界面', action: enterHub },
         { text: '查看状态', action: viewStatus }
@@ -989,6 +1241,7 @@ function exploreGrassland() {
 function triggerLinxiaoEvent() {
     gameState.progress.flags.linxiaoMet = true;
     gameState.progress.storyStep = STORY_STEPS.LINXIAO_PENDING;
+    markCharacterSeen('linxiao');
     addLog(NARRATIVE.story.linxiaoMeet, 'dialogue');
     addLog(NARRATIVE.story.linxiaoChallenge, 'dialogue');
     setButtons([
@@ -1109,6 +1362,7 @@ function exploreForest() {
 
 function triggerLaboratoryEvent() {
     gameState.progress.flags.laboratoryFound = true;
+    markCharacterSeen('dreamland_agent');
     addLog(NARRATIVE.story.labDiscovery, 'sys');
     addLog(NARRATIVE.story.dreamlandAgent, 'dialogue');
     setButtons([
@@ -1232,6 +1486,12 @@ function claimQuestReward(questId) {
             addLog(`获得 ${itemName} x${reward.items[itemName]}。`, 'heal');
         });
     }
+    if (reward.special) {
+        Object.keys(reward.special).forEach((itemName) => {
+            addInventoryItem(itemName, reward.special[itemName]);
+            addLog(`获得 ${itemName} x${reward.special[itemName]}。`, 'heal');
+        });
+    }
 
     gameState.progress.questStates[questId] = 'claimed';
     switch (questId) {
@@ -1309,6 +1569,7 @@ function addPetToReserve(petName, source = 'capture') {
     const pet = createPetInstance(petName);
     pet.owner = null;
     gameState.petReserve.push(pet);
+    markPetSeen(petName);
     if (source === 'capture') {
         gameState.progress.counters.capturesTotal += 1;
         gameState.progress.counters.capturesByRarity[pet.rarity] += 1;
@@ -1445,6 +1706,18 @@ function mergeProgress(progress) {
             ...base.questStates,
             ...(progress.questStates || {})
         },
+        encyclopedia: {
+            ...base.encyclopedia,
+            ...(progress.encyclopedia || {}),
+            seenPets: {
+                ...base.encyclopedia.seenPets,
+                ...((progress.encyclopedia && progress.encyclopedia.seenPets) || {})
+            },
+            seenCharacters: {
+                ...base.encyclopedia.seenCharacters,
+                ...((progress.encyclopedia && progress.encyclopedia.seenCharacters) || {})
+            }
+        },
         flags: {
             ...base.flags,
             ...(progress.flags || {})
@@ -1571,6 +1844,7 @@ function loadGame(slot) {
     gameState.phase = 'hub';
     gameState.nextPetUid = safeNumber(data.nextPetUid, 1);
     gameState.progress = mergeProgress(data.progress);
+    syncEncyclopediaDiscoveries();
 
     hideAllMenus();
     document.getElementById('game-container').style.display = 'flex';
@@ -1717,6 +1991,25 @@ function renderAboutContent() {
     const aboutContent = document.getElementById('aboutContent');
     if (!aboutContent) return;
 
+    const agesHtml = (WORLD_LORE.ages || []).map((age) => `
+        <div class="about-lore-item">
+            <div class="about-lore-title">${age.name}</div>
+            <div class="about-lore-text">${age.description}</div>
+        </div>
+    `).join('');
+
+    const factionsHtml = (WORLD_LORE.factions || []).map((faction) => `
+        <div class="about-faction-card">
+            <div class="about-faction-head">
+                <strong>${faction.name}</strong>
+                <span>${faction.alias}</span>
+            </div>
+            <div class="about-lore-text">${faction.description}</div>
+            <div class="about-faction-belief">理念：${faction.belief}</div>
+            <div class="about-faction-hidden">${faction.hidden}</div>
+        </div>
+    `).join('');
+
     const historyHtml = VERSION_HISTORY.map((entry) => `
         <div class="about-changelog-item">
             <div class="about-changelog-head">
@@ -1729,9 +2022,30 @@ function renderAboutContent() {
 
     aboutContent.innerHTML = `
         <p><strong>A Rustling Grass</strong></p>
-        <p>一款文字冒险 RPG 游戏</p>
-        <p>选择职业，收服宠物伙伴，在微风草丛中探索与战斗。</p>
+        <p>一款发生在 ${WORLD_LORE.worldName} 的文字冒险 RPG 游戏</p>
+        <p>${WORLD_LORE.windMark.title} 不是风，而是世界呼吸留下的痕迹。玩家从微风村出发，在第一章中接触风纹失衡的最初征兆。</p>
         <p id="aboutVersionLabel" style="margin-top: 20px;">版本: ${getCurrentGameVersion()}</p>
+        <div class="about-lore-block">
+            <h3>${WORLD_LORE.windMark.title}</h3>
+            <div class="about-lore-quote">${WORLD_LORE.windMark.subtitle}</div>
+            <div class="about-lore-text">${WORLD_LORE.windMark.description}</div>
+        </div>
+        <div class="about-lore-block">
+            <h3>${WORLD_LORE.legend.title}</h3>
+            <div class="about-lore-text">${WORLD_LORE.legend.description}</div>
+        </div>
+        <div class="about-lore-block">
+            <h3>三个时代</h3>
+            ${agesHtml}
+        </div>
+        <div class="about-lore-block">
+            <h3>三大势力</h3>
+            ${factionsHtml}
+        </div>
+        <div class="about-lore-block">
+            <h3>当前可玩范围</h3>
+            <div class="about-lore-text">${WORLD_LORE.currentScope}</div>
+        </div>
         <div class="about-changelog">
             <h3>更新日志</h3>
             ${historyHtml}
@@ -1802,6 +2116,11 @@ function handleStoryCombatVictory(context) {
             break;
         case 'linxiaoBoss':
             gameState.progress.flags.linxiaoDefeated = true;
+            markCharacterSeen('linxiao');
+            if (grantEncyclopedia()) {
+                addLog('<strong>林晓</strong>把一本边角磨旧的册子抛给了你：“这是我和李四一起整理的图鉴底本。你之后见过的宠物、人物和敌人，都会慢慢被记进去。”', 'dialogue');
+                addLog('你获得了 <strong>图鉴大全</strong>。已遭遇过的对象会立刻补登记，之后的新遭遇也会继续写入。', 'heal');
+            }
             addLog(NARRATIVE.story.linxiaoDefeat, 'dialogue');
             addLog(NARRATIVE.story.linxiaoOffer, 'dialogue');
             offerLinxiaoChoice();
@@ -1837,6 +2156,8 @@ function handleStoryCombatDefeat(context) {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+    syncVersionLabels();
+    renderAboutContent();
     showMainMenu();
 });
 

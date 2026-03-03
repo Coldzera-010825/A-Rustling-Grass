@@ -1,5 +1,10 @@
-﻿const GAME_VERSION = '0.9.3';
+﻿const GAME_VERSION = '0.12.0';
 const VERSION_HISTORY = [
+    { version: '0.12.0', date: '2026-03-03', summary: '新增剧情获得的图鉴大全，收录宠物、人物与敌对单位，并按遭遇与捕获逐步解锁条目。' },
+    { version: '0.11.2', date: '2026-03-03', summary: '新增开发者专用的 NPC 对话与任务总表文档，汇总当前主线、支线和村庄对话实现。' },
+    { version: '0.11.1', date: '2026-03-03', summary: '重做“桥边异响”支线引导，补上村长确认环节，并按阶段显示明确的下一步操作。' },
+    { version: '0.11.0', date: '2026-03-03', summary: '重构风纹大陆世界观，明确三大势力动机，并将“微风村附近的异常核心”写入第一章伏笔。' },
+    { version: '0.10.1', date: '2026-03-03', summary: '将商店入口收回村庄集市区域，并把休息调整为前三次免费、后续递增收费。' },
     { version: '0.10.0', date: '2026-03-03', summary: '加入双界面风格、技能悬停说明、技能总览与按等级节点解锁技能。' },
     { version: '0.9.3', date: '2026-03-02', summary: '修复日志队列下的按钮卡死问题，并加入返回主菜单与保存提示。' },
     { version: '0.9.2', date: '2026-03-02', summary: '加入日志队列与战斗节奏延迟，降低日志瞬时刷屏问题。' },
@@ -91,7 +96,7 @@ const QUESTS = {
         title: '收容计划',
         giver: '李四',
         description: '李四想观察普通稀有度的野宠行为，请你捕获 1 只普通品质宠物。',
-        reward: { money: 90, items: { '高级球': 1 }, special: { '怪兽图鉴': 1 } }
+        reward: { money: 90, items: { '高级球': 1, '普通球': 2 } }
     }
 };
 
@@ -140,6 +145,7 @@ function createInitialProgress() {
             grasslandExplorations: 0,
             grasslandWins: 0,
             forestWins: 0,
+            restsTaken: 0,
             capturesTotal: 0,
             capturesByRarity: {
                 '普通': 0,
@@ -153,6 +159,11 @@ function createInitialProgress() {
             chief_patrol: 'available',
             zhangsan_fruit: 'available',
             lisi_capture: 'available'
+        },
+        encyclopedia: {
+            obtained: false,
+            seenPets: {},
+            seenCharacters: {}
         },
         flags: {
             talkedToVillageChief: false,
@@ -511,10 +522,169 @@ function buildSkillCompendium() {
 
 const SKILL_COMPENDIUM = buildSkillCompendium();
 
+const ENCYCLOPEDIA_RARITY_GUIDE = [
+    { rarity: '普通', description: '最常见的风纹个体，生态稳定，常作为新手观察与训练对象。' },
+    { rarity: '稀有', description: '较少自然出现，通常拥有更鲜明的属性特征或更完整的战斗轮廓。' },
+    { rarity: '超稀有', description: '常伴随异常风纹环境出现，个体特征强，遭遇概率明显偏低。' },
+    { rarity: '极品', description: '接近区域顶点的个体，往往会影响一整片生态或承担特殊剧情定位。' },
+    { rarity: '神兽', description: '当前章节尚未出现，通常指与大陆级风纹传说直接相关的存在。' }
+];
+
+const ENCYCLOPEDIA_CHARACTER_ENTRIES = [
+    {
+        id: 'chief',
+        order: 1,
+        name: '村长',
+        role: '微风村长者',
+        group: '村庄 NPC',
+        unlockHint: '与村长交谈后解锁。',
+        description: '守着微风村旧传统的长者，口风稳，判断也稳。他把村子的安宁看得比一切都重。'
+    },
+    {
+        id: 'zhangsan',
+        order: 2,
+        name: '张三',
+        role: '晒谷人',
+        group: '村庄 NPC',
+        unlockHint: '在老井边与张三交谈后解锁。',
+        description: '说话带着烟火气的村民，总把“过日子”看得比“闯世界”更重要，却也看得出你坐不住。'
+    },
+    {
+        id: 'lisi',
+        order: 3,
+        name: '李四',
+        role: '观察记录员',
+        group: '村庄 NPC',
+        unlockHint: '在磨坊前与李四交谈后解锁。',
+        description: '喜欢记录风纹兽行为的小心观察者，希望靠一点点积累，把村外生态整理成能被看懂的知识。'
+    },
+    {
+        id: 'ahe',
+        order: 4,
+        name: '阿禾',
+        role: '杂货铺老板',
+        group: '村庄 NPC',
+        unlockHint: '在集市长棚与阿禾交谈后解锁。',
+        description: '算盘拨得很快，脑子也快。对他来说，冒险不是热血，而是准备、成本和活着回来。'
+    },
+    {
+        id: 'qushen',
+        order: 5,
+        name: '曲婶',
+        role: '宠物市集老板',
+        group: '村庄 NPC',
+        unlockHint: '在集市长棚与曲婶交谈后解锁。',
+        description: '把每一只小家伙都当成“暂时还没遇到同行者”的生命，不喜欢别人把宠物只当成货物。'
+    },
+    {
+        id: 'granny_moss',
+        order: 6,
+        name: '苔婆婆',
+        role: '采药老人',
+        group: '村庄 NPC',
+        unlockHint: '在老井边与苔婆婆交谈后解锁。',
+        description: '总能先从风声和夜里的细响里察觉村子的变化。看起来絮叨，实则比很多人都敏锐。'
+    },
+    {
+        id: 'ferryman_bo',
+        order: 7,
+        name: '摆渡伯',
+        role: '桥边守望者',
+        group: '村庄 NPC',
+        unlockHint: '在溪桥外缘与摆渡伯交谈后解锁。',
+        description: '守着溪桥和风灯的老人，见惯了村口进出的人和物，因此也更能分辨什么“不像是村里的东西”。'
+    },
+    {
+        id: 'linxiao',
+        order: 8,
+        name: '林晓',
+        role: '试炼对手 / 可选伙伴',
+        group: '关键人物',
+        unlockHint: '在草丛中与林晓完成比试后解锁。',
+        description: '你的青梅玩伴，张扬、直率，战斗时却比平时更冷静。愿不愿同行，会改变你第一章之后的旅途节奏。'
+    },
+    {
+        id: 'dreamland_agent',
+        order: 9,
+        name: '幻梦乐园代理',
+        role: '乐园前哨人员',
+        group: '势力人物',
+        unlockHint: '在森林实验室听见对方发言后解锁。',
+        description: '幻梦乐园埋在森林深处的代理声音。语气温和，却把“设计自然”当成理所当然的事。'
+    },
+    {
+        id: 'lab_robot',
+        order: 10,
+        name: '实验机器人',
+        role: '实验室守卫',
+        group: '敌对单位',
+        unlockHint: '在森林实验室遭遇实验机器人后解锁。',
+        description: '被用于实验室守备的机械单位，动作僵硬却服从性极高，说明这处设施并非临时搭建。'
+    }
+];
+
+function safeDexId(rawId) {
+    return Number.parseInt(String(rawId || '').replace(/[^0-9]/g, ''), 10) || 999;
+}
+
+function buildPetEncyclopediaEntries() {
+    return Object.keys(MONSTER_DEX)
+        .sort((left, right) => safeDexId(MONSTER_DEX[left]?.id) - safeDexId(MONSTER_DEX[right]?.id))
+        .map((name, index) => ({
+            key: name,
+            order: index + 1,
+            ...MONSTER_DEX[name]
+        }));
+}
+
+const ENCYCLOPEDIA_PET_ENTRIES = buildPetEncyclopediaEntries();
+
+const WORLD_LORE = {
+    worldName: '风纹大陆',
+    windMark: {
+        title: '风纹',
+        subtitle: '它不是风，而是世界呼吸留下的痕迹。',
+        description: '大陆上的生命共享一种不可见能量。火是躁动的风纹，水是沉静的风纹，草是生长的风纹，电是断裂的风纹，飞行是漂浮的风纹，虫是群集的风纹。风纹兽并非普通野兽，而是风纹在生命体内凝成的回响。'
+    },
+    legend: {
+        title: '古老传说',
+        description: '数百年前，风曾停止过整整一天。那一天草不动，水不流，火不燃。异象结束后，第一批风纹兽出现在草丛里，人类自此学会与它们共生，也学会利用它们。'
+    },
+    ages: [
+        { name: '共生时代', description: '人类与风纹兽协作生活，村庄围绕风纹生态建立。微风村正是这个时代留下的遗址型聚落。' },
+        { name: '利用时代', description: '城市发现风纹兽可以转化为能源，捕获装置与风纹工业由此诞生。' },
+        { name: '失衡时代（现在）', description: '风纹流动开始异常，草丛出现倒流风纹，森林里出现未记录的变异种。你所在的微风村仍活在共生时代的影子里，而外界已进入利用时代。' }
+    ],
+    factions: [
+        {
+            name: '幻梦乐园合伙人',
+            alias: 'Dreamland Consortium',
+            belief: '秩序比自然更安全。',
+            description: '他们是大陆最成功的娱乐企业，用风纹兽做表演、能源展示与幻象投影，主张“风纹需要被设计”。他们正在研究稳定风纹流动、人工循环与可控型宠物。',
+            hidden: '森林实验室正在尝试把风纹压缩成恒定能源核心，副作用是属性紊乱、草丛风声异变与双属性变种。实验主管已经怀疑这不是控制，而是在堆积灾难。'
+        },
+        {
+            name: '齿轮会',
+            alias: 'Gear Faction',
+            belief: '真正稳定的是机械，而不是风纹。',
+            description: '他们是工业自治联盟，主张人类必须摆脱对风纹兽的依赖，研究机械宠物装甲、替代驱动与战斗外骨骼。',
+            hidden: '他们之所以极端机械化，并不是单纯贪婪，而是害怕风纹拥有意志。机甲首领赫曼见过“风停下的那一天”，因此选择压制一切未知。'
+        },
+        {
+            name: '盗猎星团',
+            alias: 'Poacher Nebula',
+            belief: '风纹不是神授，它是有限资源。',
+            description: '他们是跨大陆势力，表面收购稀有宠物，实则来自“无风之地”。在那个地方，风纹已经枯竭，生态崩塌，他们更像是幸存者而非单纯掠夺者。',
+            hidden: '他们检测到风纹大陆的流动正向某个核心点聚集，而那个核心点就在微风村附近。'
+        }
+    ],
+    currentScope: '当前游戏内容仍只实现第一章：微风村、回声草丛、呢喃森林与森林实验室。第二章及之后的势力冲突目前只以前置伏笔形式出现。'
+};
+
 const NARRATIVE = {
     intro: {
-        opening: '风从田埂尽头缓缓卷来，带着潮湿泥土与野花混杂的气味。你站在微风村的石路中央，耳边是鸡鸣、木轮和远处溪流的叮咚声。这个村子像一段被遗忘的旧梦，安静地把你重新接回了怀里。',
-        chiefGreeting: '<strong>村长</strong>：“你总算醒了。最近回声草丛那边不太安宁，夜里有灯火，白天有惊叫，连平时胆小的大牙鼠都开始成群乱窜。”',
+        opening: '风从田埂尽头缓缓卷来，带着潮湿泥土与野花混杂的气味。你站在微风村的石路中央，耳边是鸡鸣、木轮和远处溪流的叮咚声。村里的老人说，这不是普通的风，而是世界呼吸留下的风纹。这个仍守着共生时代习惯的小村，正被一股陌生而失衡的流动悄悄包围。',
+        chiefGreeting: '<strong>村长</strong>：“你总算醒了。最近回声草丛那边不太安宁，夜里有灯火，白天有惊叫，连平时胆小的大牙鼠都开始成群乱窜。草叶摆动的方向都不对了，像是风纹在倒流。”',
         classPrompt: '村长把手杖点在石砖上，像是为你的旅途敲响第一记钟声。出发之前，你得先决定自己要以什么姿态面对这片世界。',
         petSelection: '<strong>村长</strong>：“守护村子的三只幼灵都在这儿了。它们不会替你作决定，但会陪你把决定走到底。”',
         readyMessage: '村口的风把草叶吹得簌簌作响。你知道，是时候离开安全的石路，去真正碰一碰这片草丛里的未知了。',
@@ -528,14 +698,14 @@ const NARRATIVE = {
     },
     explore: {
         title: '=== 回声草丛 ===',
-        description: '草茎高过小腿，叶片边缘还挂着细碎露珠。每走一步，前方都会传来细微回响，像有什么东西也在另一边悄悄移动。',
+        description: '草茎高过小腿，叶片边缘还挂着细碎露珠。每走一步，前方都会传来细微回响，像有什么东西也在另一边悄悄移动。偶尔有一阵风逆着草叶的纹理掠过去，让你意识到这里的风纹流动正在失衡。',
         encounter: '脚边的草叶忽然炸开，一只 <strong>{{enemy}}</strong> 带着警惕与敌意冲了出来。',
         foundItem: '你拨开一簇被露水压弯的草，下面静静躺着 <strong>{{item}}</strong>。',
         nothing: '你停下呼吸听了一会儿，只有风声和昆虫振翅的细响在草叶间来回穿梭。'
     },
     forest: {
         title: '=== 呢喃森林 ===',
-        description: '树冠遮住了天光，只剩一条条冷绿色的缝隙落在泥地上。空气像浸过水一样沉，脚步声在林间会被放大，又很快被黑暗吞掉。',
+        description: '树冠遮住了天光，只剩一条条冷绿色的缝隙落在泥地上。空气像浸过水一样沉，脚步声在林间会被放大，又很快被黑暗吞掉。这里的风纹不像村外草地那样温顺，而像被什么力量压缩后强行困在了树影里。',
         encounter: '枯叶堆里猛地翻起一道影子，<strong>{{enemy}}</strong> 带着尖锐的嘶鸣扑了上来。',
         foundItem: '潮湿树根旁的空隙里，你摸到了 <strong>{{item}}</strong>。',
         nothing: '林中短暂地安静下来，安静得仿佛连你的心跳都能被树干听见。'
@@ -553,12 +723,12 @@ const NARRATIVE = {
         duoPenalty: '林晓加入队伍。双人队伍更稳，但战斗经验会被平分，额外赏金也会减少。',
         forestUnlocked: '村口通往呢喃森林的小路被重新清理出来了。更深的阴影、更重的风险，也在那边等着你。',
         forestBattleIntro: '盘根后的阴影忽然向下垂落，一只森林蛛借着细丝无声逼近，足肢敲得枯叶发出细密的沙沙声。',
-        forestBattleVictory: '击退森林蛛后，前方一小片缠藤忽然晃动起来。你拨开枯枝，发现藤幕后藏着一扇钉满铆钉的旧金属门。',
-        labDiscovery: '那扇门后并不是猎人小屋，而是一条带着机油味与消毒水味的狭窄通道。墙上暗淡的灯管闪了两下，像是有东西刚刚苏醒。',
-        dreamlandAgent: '<strong>幻梦乐园代理</strong>的声音从深处传来，轻飘飘得近乎温柔：“欢迎，误入者。既然已经走到这里，总该见见我们为这个世界准备的新秩序。”',
-        robotDefeat: '最后一束火花熄灭后，实验室终于安静下来。你在碎裂的金属板下拾起一枚微微发亮的棱形碎片，它冷得像一小块凝固星光。',
-        chapterComplete: '第一章结束。你带着 <strong>星光碎片</strong> 返回村庄，知道自己已经不可能再退回平静的昨天。',
-        nextChapterLocked: '第二章尚未开放，但第一章主线、经济、任务与捕获系统已经形成完整闭环。'
+        forestBattleVictory: '击退森林蛛后，前方一小片缠藤忽然晃动起来。你拨开枯枝，发现藤幕后藏着一扇钉满铆钉的旧金属门。门缝里渗出的并不是自然风，而是一种被压得过于安静的风纹震颤。',
+        labDiscovery: '那扇门后并不是猎人小屋，而是一条带着机油味与消毒水味的狭窄通道。墙上暗淡的灯管闪了两下，像是有东西刚刚苏醒。仪表盘上滚动着你看不懂的术语，但“风纹压缩”“恒定核心”几个词异常清晰。',
+        dreamlandAgent: '<strong>幻梦乐园代理</strong>的声音从深处传来，轻飘飘得近乎温柔：“欢迎，误入者。野性的风纹迟早会失控。我们不是在破坏它，我们是在为这个世界设计一个更安全的新秩序。”',
+        robotDefeat: '最后一束火花熄灭后，实验室终于安静下来。你在碎裂的金属板下拾起一枚微微发亮的棱形碎片，它冷得像一小块凝固星光。附近的屏幕还在断断续续闪烁：风纹浓度异常上升，源头指向微风村。',
+        chapterComplete: '第一章结束。你带着 <strong>星光碎片</strong> 返回村庄，知道自己已经不可能再退回平静的昨天。微风村也许不是边缘地带，而是整场风纹失衡真正开始收束的地方。',
+        nextChapterLocked: '第二章尚未开放。当前可玩内容仍限制在第一章，但“风纹异常的核心靠近微风村”与大陆三大势力的动机，已经作为后续主线正式埋下。实验室残屏最后闪过的远程回执只有一句话：“确认目标区域。准备回收。”'
     },
     village: {
         chiefQuestOffer: '<strong>村长</strong>：“回声草丛再这么闹下去，孩子们连放风筝都不敢去了。帮我清一清那里的野宠吧。”',

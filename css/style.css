@@ -252,6 +252,9 @@ button:disabled {
     justify-content: center;
     align-items: center;
     height: 100vh;
+    padding: 20px 0;
+    box-sizing: border-box;
+    overflow-y: auto;
     background: linear-gradient(135deg, #1a1a1a 0%, #2d3436 100%);
 }
 
@@ -259,11 +262,13 @@ button:disabled {
     text-align: center;
     max-width: 600px;
     width: 90%;
+    max-height: calc(100vh - 40px);
     padding: 40px;
     background-color: rgba(34, 34, 34, 0.9);
     border: 2px solid var(--accent-color);
     border-radius: 10px;
     box-shadow: 0 0 30px rgba(76, 175, 80, 0.3);
+    box-sizing: border-box;
 }
 
 .game-title {
@@ -384,6 +389,9 @@ button:disabled {
     line-height: 2;
     color: #ccc;
     margin: 20px 0;
+    max-height: calc(100vh - 220px);
+    overflow-y: auto;
+    padding-right: 10px;
 }
 
 .about-text p {
@@ -427,6 +435,70 @@ button:disabled {
 .about-changelog-date,
 .about-changelog-summary {
     color: #c7d1c9;
+}
+
+.about-lore-block {
+    margin-top: 22px;
+    text-align: left;
+}
+
+.about-lore-block h3 {
+    margin: 0 0 10px 0;
+    color: #b7d9af;
+}
+
+.about-lore-quote {
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    border-left: 3px solid rgba(183, 217, 175, 0.55);
+    background: rgba(255, 255, 255, 0.04);
+    color: #dce9d8;
+}
+
+.about-lore-text {
+    color: #c7d1c9;
+    line-height: 1.8;
+}
+
+.about-lore-item {
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border: 1px solid rgba(76, 175, 80, 0.18);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.about-lore-title {
+    margin-bottom: 4px;
+    color: #d6efc6;
+    font-weight: bold;
+}
+
+.about-faction-card {
+    margin-bottom: 12px;
+    padding: 12px;
+    border: 1px solid rgba(76, 175, 80, 0.2);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.about-faction-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+    color: #e3f0dd;
+}
+
+.about-faction-belief {
+    margin-top: 8px;
+    color: #d6efc6;
+}
+
+.about-faction-hidden {
+    margin-top: 8px;
+    color: #c7d1c9;
+    line-height: 1.7;
 }
 
 /* 在游戏中的保存按钮 */
@@ -954,13 +1026,29 @@ body[data-ui-mode='ops'] .about-changelog-item {
     background: rgba(86, 117, 145, 0.04);
 }
 
+body[data-ui-mode='ops'] .about-lore-block h3,
 body[data-ui-mode='ops'] .about-changelog h3,
 body[data-ui-mode='ops'] .about-changelog-version {
     color: #3d607d;
 }
 
+body[data-ui-mode='ops'] .about-lore-quote,
+body[data-ui-mode='ops'] .about-lore-item,
+body[data-ui-mode='ops'] .about-faction-card {
+    border-color: #ccd7e0;
+    background: rgba(86, 117, 145, 0.04);
+}
+
+body[data-ui-mode='ops'] .about-lore-title,
+body[data-ui-mode='ops'] .about-faction-belief {
+    color: #3d607d;
+}
+
 body[data-ui-mode='ops'] .about-changelog-date,
-body[data-ui-mode='ops'] .about-changelog-summary {
+body[data-ui-mode='ops'] .about-changelog-summary,
+body[data-ui-mode='ops'] .about-lore-text,
+body[data-ui-mode='ops'] .about-faction-hidden,
+body[data-ui-mode='ops'] .about-faction-head {
     color: #5f7385;
 }
 
@@ -1013,5 +1101,30 @@ body[data-ui-mode='ops'] .about-changelog-summary {
 
     body[data-ui-mode='ops'] #left-panel {
         display: flex;
+    }
+}
+
+@media (max-width: 640px) {
+    .menu-screen {
+        padding: 12px 0;
+        align-items: flex-start;
+    }
+
+    .menu-container {
+        width: calc(100% - 24px);
+        max-height: calc(100vh - 24px);
+        padding: 22px 18px;
+    }
+
+    .about-text {
+        max-height: calc(100vh - 170px);
+        margin: 16px 0;
+        padding-right: 6px;
+    }
+
+    .about-changelog-head,
+    .about-faction-head {
+        flex-direction: column;
+        align-items: flex-start;
     }
 }
