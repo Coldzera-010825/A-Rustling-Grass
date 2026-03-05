@@ -361,6 +361,10 @@ function showCombatOptions(unit) {
         buttons.push({ text: '投掷精灵球', action: () => openCaptureMenu(unit), helpText: '从背包里选择捕获球。目标越残血、球等级越高，成功率越高。' });
     }
 
+    if (!unit.isPet) {
+        buttons.push({ text: '使用道具', action: () => openCombatItemMenu(unit), helpText: '从背包选择恢复道具给己方单位使用。' });
+    }
+
     buttons.push({ text: '返回村庄', action: fleeToVillage, helpText: '立即脱离战斗并回到村庄，队伍会被恢复。' });
     setButtons(buttons);
 }
@@ -701,5 +705,115 @@ function fleeToVillage() {
     gameState.phase = 'hub';
     updateUI();
     runAfterLogs(() => enterHub(), 120);
+}
+
+function openCombatItemMenu(unit) {
+    const humanItems = Object.keys(HUMAN_ITEM_DATA).filter((itemName) => getInventoryCount(itemName) > 0);
+    const petItems = Object.keys(PET_ITEM_DATA).filter((itemName) => getInventoryCount(itemName) > 0);
+
+    if (humanItems.length === 0 && petItems.length === 0) {
+        addLog('背包里没有可用的恢复道具。', 'sys');
+        showCombatOptions(unit);
+        return;
+    }
+
+    const buttons = [];
+
+    if (humanItems.length > 0) {
+        humanItems.forEach((itemName) => {
+            const itemData = HUMAN_ITEM_DATA[itemName];
+            buttons.push({
+                text: `${itemName} x${getInventoryCount(itemName)} [人类]`,
+                action: () => selectCombatItemTarget(unit, itemName, 'human'),
+                className: 'skill-button',
+                helpText: `${itemData.description}（HP+${itemData.hp || 0} MP+${itemData.mp || 0}）`
+            });
+        });
+    }
+
+    if (petItems.length > 0) {
+        petItems.forEach((itemName) => {
+            const itemData = PET_ITEM_DATA[itemName];
+            buttons.push({
+                text: `${itemName} x${getInventoryCount(itemName)} [宠物]`,
+                action: () => selectCombatItemTarget(unit, itemName, 'pet'),
+                className: 'skill-button',
+                helpText: `${itemData.description}（HP+${itemData.hp || 0} MP+${itemData.mp || 0}）`
+            });
+        });
+    }
+
+    buttons.push({ text: '返回技能菜单', action: () => showCombatOptions(unit), helpText: '回到当前单位的攻击与技能菜单。' });
+    setButtons(buttons);
+}
+
+function selectCombatItemTarget(user, itemName, itemType) {
+    const cs = gameState.combatState;
+    if (!cs) return;
+
+    const targets = cs.allies.filter((ally) => {
+        if (ally.hp <= 0) return false;
+        if (itemType === 'human') return !ally.isPet;
+        if (itemType === 'pet') return ally.isPet;
+        return false;
+    });
+
+    if (targets.length === 0) {
+        addLog(itemType === 'human' ? '没有可用的人类目标。' : '没有可用的宠物目标。', 'sys');
+        showCombatOptions(user);
+        return;
+    }
+
+    if (targets.length === 1) {
+        useCombatItem(user, itemName, targets[0]);
+        return;
+    }
+
+    const buttons = targets.map((target) => ({
+        text: `${target.name} (HP:${target.hp}/${target.maxHp} MP:${target.mp}/${target.maxMp})`,
+        action: () => useCombatItem(user, itemName, target),
+        className: 'skill-button',
+        helpText: `对 ${target.name} 使用 ${itemName}`
+    }));
+
+    buttons.push({ text: '返回道具菜单', action: () => openCombatItemMenu(user), helpText: '回到道具选择菜单。' });
+    setButtons(buttons);
+}
+
+function useCombatItem(user, itemName, target) {
+    const cs = gameState.combatState;
+    if (!cs || !cs.currentUnit || cs.currentUnit.id !== user.id) return;
+
+    const itemData = HUMAN_ITEM_DATA[itemName] || PET_ITEM_DATA[itemName];
+    if (!itemData) {
+        addLog('道具数据错误。', 'sys');
+        showCombatOptions(user);
+        return;
+    }
+
+    removeInventoryItem(itemName, 1);
+    addLog(`<strong>${user.name}</strong> 对 <strong>${target.name}</strong> 使用了 <strong>${itemName}</strong>！`, 'combat');
+
+    if (itemData.hp > 0) {
+        const healAmount = itemData.hp;
+        const actualHeal = Math.min(healAmount, target.maxHp - target.hp);
+        target.hp = Math.min(target.maxHp, target.hp + healAmount);
+        triggerCombatUnitEffect(target, 'heal', actualHeal);
+        addLog(`→ <strong>${target.name}</strong> 恢复了 ${actualHeal} HP！(当前HP: ${target.hp})`, 'heal');
+    }
+
+    if (itemData.mp > 0) {
+        const mpAmount = itemData.mp;
+        const actualMpRestore = Math.min(mpAmount, target.maxMp - target.mp);
+        target.mp = Math.min(target.maxMp, target.mp + mpAmount);
+        if (actualMpRestore > 0) {
+            addLog(`→ <strong>${target.name}</strong> 恢复了 ${actualMpRestore} MP！(当前MP: ${target.mp})`, 'heal');
+        }
+    }
+
+    updateUI();
+    if (!checkCombatEnd()) {
+        runAfterLogs(() => nextTurn(), 140);
+    }
 }
 

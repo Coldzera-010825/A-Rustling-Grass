@@ -1,5 +1,6 @@
-const GAME_VERSION = '0.14.0';
+const GAME_VERSION = '0.15.0';
 const VERSION_HISTORY = [
+    { version: '0.15.0', date: '2026-03-05', summary: '新增战斗道具使用、背包道具管理与丢弃，重构宠物市集为动态刷新机制。' },
     { version: '0.14.0', date: '2026-03-03', summary: '将宠物市集改为独立弹窗，并为杂货铺和宠物市集加入分类筛选。' },
     { version: '0.13.9', date: '2026-03-03', summary: '将杂货铺改为独立商品弹窗，为每件商品显示说明、价格与购买状态。' },
     { version: '0.13.8', date: '2026-03-03', summary: '将图鉴大全重构为人物、风纹兽、道具三个可切换页签，并新增道具图鉴。' },
@@ -122,12 +123,65 @@ const SHOP_ITEMS = [
     ...BAG_UPGRADES.pet.options.map((entry) => ({ ...entry, kind: 'upgrade', upgradeType: 'pet' }))
 ];
 
-const PET_MARKET = [
-    { name: '大牙鼠', price: 80, description: '便宜耐用，适合新手补位。' },
-    { name: '草跳兔', price: 95, description: '速度很快，适合消耗与游击。' },
-    { name: '咕咕鸟', price: 120, description: '速度很快，适合抢先手。' },
-    { name: '森叶鹿', price: 160, description: '森林中的回复型宠物，适合稳扎稳打。', requiresForest: true }
-];
+const PET_MARKET_CONFIG = {
+    refreshIntervalMinutes: 30,
+    slotCount: 6,
+    rarityWeights: {
+        '普通': 0.80,
+        '稀有': 0.10,
+        '超稀有': 0.08,
+        '极品': 0.02
+    },
+    priceMultipliers: {
+        '普通': 1.0,
+        '稀有': 1.8,
+        '超稀有': 3.5,
+        '极品': 8.0
+    },
+    basePrice: 80,
+    excludedPets: ['火尾狐', '水泡蛙', '叶芽兽', '棱镜机偶']
+};
+
+function generatePetMarketInventory() {
+    const availablePets = Object.keys(PETS).filter((petName) => {
+        const pet = PETS[petName];
+        return !PET_MARKET_CONFIG.excludedPets.includes(petName) && pet.rarity !== '神兽';
+    });
+
+    const inventory = [];
+    const rarityPool = Object.keys(PET_MARKET_CONFIG.rarityWeights);
+
+    for (let i = 0; i < PET_MARKET_CONFIG.slotCount; i++) {
+        const roll = Math.random();
+        let cumulative = 0;
+        let selectedRarity = '普通';
+
+        for (const rarity of rarityPool) {
+            cumulative += PET_MARKET_CONFIG.rarityWeights[rarity];
+            if (roll < cumulative) {
+                selectedRarity = rarity;
+                break;
+            }
+        }
+
+        const petsOfRarity = availablePets.filter((petName) => PETS[petName].rarity === selectedRarity);
+        if (petsOfRarity.length === 0) continue;
+
+        const selectedPet = petsOfRarity[Math.floor(Math.random() * petsOfRarity.length)];
+        const petData = PETS[selectedPet];
+        const price = Math.floor(PET_MARKET_CONFIG.basePrice * PET_MARKET_CONFIG.priceMultipliers[petData.rarity]);
+
+        inventory.push({
+            name: selectedPet,
+            price: price,
+            description: `${petData.type}属性，${petData.rarity}稀有度。`
+        });
+    }
+
+    return inventory;
+}
+
+let PET_MARKET = generatePetMarketInventory();
 
 const QUESTS = {
     chief_patrol: {
@@ -218,6 +272,10 @@ function createInitialProgress() {
             itemBagCapacity: BAG_UPGRADES.item.base.capacity,
             petBagTier: BAG_UPGRADES.pet.base.tier,
             petBagCapacity: BAG_UPGRADES.pet.base.capacity
+        },
+        petMarket: {
+            lastRefreshTime: Date.now(),
+            inventory: generatePetMarketInventory()
         },
         encyclopedia: {
             obtained: false,

@@ -1,6 +1,6 @@
 # A Rustling Grass / 微风草丛
 
-当前版本 / Current Version: `0.14.0`
+当前版本 / Current Version: `0.15.0`
 
 《微风草丛》是一款持续迭代中的文字驱动回合制 RPG。玩家从微风村出发，选择职业与初始宠物，在草丛、森林与实验室线索之间推进第一章剧情，进行探索、战斗、捕获、调查与解谜。
 
@@ -29,6 +29,13 @@ This project is still under active development. You may still encounter balance 
 - 实验室内部会进入灾变现场，并遭遇第一章内部 Boss“失衡实验体”。
 
 ## 近期关键更新 / Recent Major Updates
+
+### 0.15.0 Combat Items, Inventory Management, and Dynamic Pet Market
+
+- Combat now supports using human and pet consumables during battle turns (HP/MP restoration).
+- Added inventory management system with item discard options for human items, pet items, and capture balls.
+- Overhauled the pet market into a dynamic refresh system that regenerates every 30 minutes.
+- Market now includes all non-legendary pets with rarity-weighted probability: Common 80%, Rare 10%, Super Rare 8%, Epic 2%.
 
 ### 0.14.0 Pet Market Modal and Shop Filters
 

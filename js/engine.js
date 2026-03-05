@@ -1593,6 +1593,7 @@ function openItemMenu() {
     setButtons([
         { text: '使用人类道具', action: openHumanItemMenu },
         { text: '使用宠物道具', action: openPetItemMenu },
+        { text: '管理道具背包', action: openInventoryManagement },
         { text: '返回村庄主界面', action: enterHub }
     ]);
 }
@@ -1661,6 +1662,99 @@ function usePetItem(itemName) {
     addLog(`你把 <strong>${itemName}</strong> 喂给了 ${gameState.pet.name}。它的状态变为 HP ${oldHp}→${gameState.pet.hp}，MP ${oldMp}→${gameState.pet.mp}。`, 'heal');
     updateUI();
     openPetItemMenu();
+}
+
+function openInventoryManagement() {
+    addLog('你整理行囊中的物品。', 'sys');
+    setButtons([
+        { text: '丢弃人类道具', action: openDiscardHumanItemMenu },
+        { text: '丢弃宠物道具', action: openDiscardPetItemMenu },
+        { text: '丢弃捕获球', action: openDiscardBallMenu },
+        { text: '返回道具菜单', action: openItemMenu }
+    ]);
+}
+
+function openDiscardHumanItemMenu() {
+    const items = Object.keys(gameState.inventory.human).filter((itemName) => (gameState.inventory.human[itemName] || 0) > 0 && HUMAN_ITEM_DATA[itemName]);
+    if (items.length === 0) {
+        addLog('你手头没有可丢弃的人类道具。', 'sys');
+        openInventoryManagement();
+        return;
+    }
+
+    const buttons = items.map((itemName) => ({
+        text: `${itemName} x${gameState.inventory.human[itemName]}`,
+        action: () => confirmDiscardItem(itemName, 'human')
+    }));
+    buttons.push({ text: '返回背包管理', action: openInventoryManagement });
+    setButtons(buttons);
+}
+
+function openDiscardPetItemMenu() {
+    const items = Object.keys(gameState.inventory.pet).filter((itemName) => (gameState.inventory.pet[itemName] || 0) > 0 && PET_ITEM_DATA[itemName]);
+    if (items.length === 0) {
+        addLog('你手头没有可丢弃的宠物道具。', 'sys');
+        openInventoryManagement();
+        return;
+    }
+
+    const buttons = items.map((itemName) => ({
+        text: `${itemName} x${gameState.inventory.pet[itemName]}`,
+        action: () => confirmDiscardItem(itemName, 'pet')
+    }));
+    buttons.push({ text: '返回背包管理', action: openInventoryManagement });
+    setButtons(buttons);
+}
+
+function openDiscardBallMenu() {
+    const balls = Object.keys(BALL_DATA).filter((ballName) => getInventoryCount(ballName) > 0);
+    if (balls.length === 0) {
+        addLog('你手头没有可丢弃的捕获球。', 'sys');
+        openInventoryManagement();
+        return;
+    }
+
+    const buttons = balls.map((ballName) => ({
+        text: `${ballName} x${getInventoryCount(ballName)}`,
+        action: () => confirmDiscardItem(ballName, 'special')
+    }));
+    buttons.push({ text: '返回背包管理', action: openInventoryManagement });
+    setButtons(buttons);
+}
+
+function confirmDiscardItem(itemName, category) {
+    const count = getInventoryCount(itemName);
+    addLog(`确定要丢弃 <strong>${itemName}</strong> 吗？当前拥有 ${count} 个。`, 'sys');
+
+    const discardButtons = [];
+    if (count >= 10) discardButtons.push({ text: '丢弃 10 个', action: () => discardItem(itemName, 10, category) });
+    if (count >= 5) discardButtons.push({ text: '丢弃 5 个', action: () => discardItem(itemName, 5, category) });
+    discardButtons.push({ text: '丢弃 1 个', action: () => discardItem(itemName, 1, category) });
+    discardButtons.push({ text: '丢弃全部', action: () => discardItem(itemName, count, category) });
+    discardButtons.push({ text: '取消', action: () => {
+        if (category === 'human') openDiscardHumanItemMenu();
+        else if (category === 'pet') openDiscardPetItemMenu();
+        else openDiscardBallMenu();
+    }});
+
+    setButtons(discardButtons);
+}
+
+function discardItem(itemName, amount, category) {
+    const actualAmount = Math.min(amount, getInventoryCount(itemName));
+    if (actualAmount <= 0) {
+        addLog('道具不足，无法丢弃。', 'sys');
+        openInventoryManagement();
+        return;
+    }
+
+    removeInventoryItem(itemName, actualAmount);
+    addLog(`你丢弃了 ${actualAmount} 个 <strong>${itemName}</strong>。`, 'sys');
+    updateUI();
+
+    if (category === 'human') openDiscardHumanItemMenu();
+    else if (category === 'pet') openDiscardPetItemMenu();
+    else openDiscardBallMenu();
 }
 function randomFromArray(items) {
     return items[Math.floor(Math.random() * items.length)];
@@ -2148,12 +2242,51 @@ function buyBagUpgrade(item) {
 }
 
 function openPetMarket() {
+    checkAndRefreshPetMarket();
     addLog(NARRATIVE.village.petMarketGreeting, 'dialogue');
     renderPetMarketModal();
 }
 
+function checkAndRefreshPetMarket() {
+    if (!gameState.progress.petMarket) {
+        gameState.progress.petMarket = {
+            lastRefreshTime: Date.now(),
+            inventory: generatePetMarketInventory()
+        };
+        return;
+    }
+
+    const now = Date.now();
+    const elapsed = now - gameState.progress.petMarket.lastRefreshTime;
+    const refreshInterval = PET_MARKET_CONFIG.refreshIntervalMinutes * 60 * 1000;
+
+    if (elapsed >= refreshInterval) {
+        gameState.progress.petMarket.lastRefreshTime = now;
+        gameState.progress.petMarket.inventory = generatePetMarketInventory();
+        addLog('曲婶刚换了一批新货，宠物集市的阵容已经更新。', 'heal');
+    }
+}
+
+function getTimeUntilNextRefresh() {
+    if (!gameState.progress.petMarket) return 0;
+    const now = Date.now();
+    const elapsed = now - gameState.progress.petMarket.lastRefreshTime;
+    const refreshInterval = PET_MARKET_CONFIG.refreshIntervalMinutes * 60 * 1000;
+    const remaining = refreshInterval - elapsed;
+    return Math.max(0, remaining);
+}
+
+function formatTimeRemaining(ms) {
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    if (minutes > 0) return `${minutes}分${seconds}秒`;
+    return `${seconds}秒`;
+}
+
 function renderPetMarketModal() {
     if (!petMarketModal || !petMarketModalContent) return;
+    checkAndRefreshPetMarket();
+
     const filters = [
         { key: 'all', label: '全部' },
         { key: '普通', label: '普通' },
@@ -2161,8 +2294,7 @@ function renderPetMarketModal() {
         { key: '超稀有', label: '超稀有' },
         { key: '极品', label: '极品' }
     ];
-    const entries = PET_MARKET
-        .filter((entry) => !entry.requiresForest || gameState.progress.mapsUnlocked.forest)
+    const entries = (gameState.progress.petMarket?.inventory || [])
         .filter((entry) => currentPetMarketFilter === 'all' || PETS[entry.name]?.rarity === currentPetMarketFilter);
     const cardHtml = entries.map((entry) => {
         const petData = PETS[entry.name];
@@ -2188,13 +2320,16 @@ function renderPetMarketModal() {
             </div>
         `;
     }).join('');
+    const timeRemaining = getTimeUntilNextRefresh();
+    const refreshText = timeRemaining > 0 ? `下次刷新：${formatTimeRemaining(timeRemaining)}` : '即将刷新';
+
     petMarketModalContent.innerHTML = `
-        <div class="status-version">${CURRENCY_NAME} ${formatValue(gameState.money)}｜宠物背包 ${gameState.petReserve.length}/${getPetBagCapacity()}</div>
+        <div class="status-version">${CURRENCY_NAME} ${formatValue(gameState.money)}｜宠物背包 ${gameState.petReserve.length}/${getPetBagCapacity()}｜${refreshText}</div>
         <section class="status-card neutral dex-card">
             <div class="status-card-header">
                 <div>
                     <div class="status-title">待领风纹兽</div>
-                    <div class="status-subtitle">按稀有度筛选后查看属性、定位和价格，再决定是否收进队伍。</div>
+                    <div class="status-subtitle">按稀有度筛选后查看属性、定位和价格，再决定是否收进队伍。集市每${PET_MARKET_CONFIG.refreshIntervalMinutes}分钟自动刷新。</div>
                 </div>
             </div>
             <div class="store-filters">
@@ -2214,7 +2349,7 @@ function setPetMarketFilter(filterKey = 'all') {
 }
 
 function buyPetFromMarket(petName) {
-    const entry = PET_MARKET.find((item) => item.name === petName);
+    const entry = gameState.progress.petMarket?.inventory?.find((item) => item.name === petName);
     if (!entry) return;
     if (gameState.money < entry.price) {
         addLog(`你的${CURRENCY_NAME}不够。`, 'sys');
