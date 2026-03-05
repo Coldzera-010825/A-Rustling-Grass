@@ -181,7 +181,7 @@ function generatePetMarketInventory() {
     return inventory;
 }
 
-let PET_MARKET = generatePetMarketInventory();
+let PET_MARKET = [];  // 延迟初始化，在PETS定义后初始化
 
 const QUESTS = {
     chief_patrol: {
@@ -275,7 +275,7 @@ function createInitialProgress() {
         },
         petMarket: {
             lastRefreshTime: Date.now(),
-            inventory: generatePetMarketInventory()
+            inventory: []  // 延迟初始化，在进入游戏时由checkAndRefreshPetMarket生成
         },
         encyclopedia: {
             obtained: false,
@@ -488,6 +488,9 @@ const PETS = {
     '星纹鹿王': { type: '草', rarity: '极品', hp: 28, mp: 18, atk: 8, spd: 6, skills: getPetSkillsByLevel('星纹鹿王', 1), skillPlan: PET_SKILL_PLANS['星纹鹿王'], requiredBall: '究极球' },
     '棱镜机偶': { type: '机械', rarity: '极品', hp: 34, mp: 18, atk: 10, spd: 7, level: 6, skills: getPetSkillsByLevel('棱镜机偶', 6), skillPlan: PET_SKILL_PLANS['棱镜机偶'] }
 };
+
+// 在PETS定义后初始化宠物市集
+PET_MARKET = generatePetMarketInventory();
 
 const ENCOUNTER_POOLS = {
     grassland: [
